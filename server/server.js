@@ -181,7 +181,7 @@ app.get('/api/sets', (req, res) => {
 // GET /api/cards
 app.get('/api/cards', (req, res) => {
   try {
-    const { game, set, sets, search, rarity, sort = 'price_desc', page = 1, limit = 24 } = req.query;
+    const { game, set, sets, search, rarity, sort = 'price_desc', graded_only, page = 1, limit = 24 } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
     let whereClause = 'WHERE 1=1';
@@ -218,6 +218,16 @@ app.get('/api/cards', (req, res) => {
       params.push(`%${search}%`, `%${search}%`);
     }
 
+    if (graded_only === 'true' || graded_only === '1') {
+      whereClause += ` AND (
+        EXISTS (
+          SELECT 1 FROM price_history ph 
+          WHERE ph.card_id = c.id 
+            AND (ph.graded_psa10 IS NOT NULL OR ph.graded_bgs10 IS NOT NULL OR ph.graded_bgs10_black IS NOT NULL)
+        )
+      )`;
+    }
+
     // Subquery for latest price and 24h change
     const sql = `
       SELECT c.*, 
@@ -248,11 +258,24 @@ app.get('/api/cards', (req, res) => {
       ${whereClause}
     `;
 
-    let orderBy = 'ORDER BY p.market_price DESC NULLS LAST';
-    if (sort === 'price_asc') orderBy = 'ORDER BY p.market_price ASC NULLS LAST';
-    else if (sort === 'name_asc') orderBy = 'ORDER BY c.name ASC';
-    else if (sort === 'number_asc') orderBy = 'ORDER BY c.card_number ASC';
-    else if (sort === 'psa10_desc') orderBy = 'ORDER BY COALESCE(graded_bgs10_black, graded_bgs10, graded_psa10) DESC NULLS LAST';
+    let orderBy = 'ORDER BY market_price DESC NULLS LAST';
+    if (sort === 'price_asc') {
+      orderBy = 'ORDER BY market_price ASC NULLS LAST';
+    } else if (sort === 'name_asc') {
+      orderBy = 'ORDER BY name ASC';
+    } else if (sort === 'number_asc') {
+      orderBy = 'ORDER BY card_number ASC';
+    } else if (sort === 'graded_desc' || sort === 'psa10_desc') {
+      orderBy = 'ORDER BY COALESCE(graded_bgs10_black, graded_bgs10, graded_psa10) DESC NULLS LAST';
+    } else if (sort === 'graded_asc') {
+      orderBy = 'ORDER BY COALESCE(graded_psa10, graded_bgs10, graded_bgs10_black) ASC NULLS LAST';
+    } else if (sort === 'psa10_only_desc') {
+      orderBy = 'ORDER BY graded_psa10 DESC NULLS LAST';
+    } else if (sort === 'bgs10_only_desc') {
+      orderBy = 'ORDER BY COALESCE(graded_bgs10_black, graded_bgs10) DESC NULLS LAST';
+    } else if (sort === 'graded_premium_desc') {
+      orderBy = 'ORDER BY (COALESCE(graded_bgs10, graded_psa10, graded_bgs10_black) / NULLIF(market_price, 0)) DESC NULLS LAST';
+    }
 
     const countSql = `
       SELECT COUNT(*) as count 
@@ -262,7 +285,7 @@ app.get('/api/cards', (req, res) => {
     `;
     const totalCount = db.prepare(countSql).get(...params).count;
 
-    const dataSql = `${sql} ${orderBy} LIMIT ? OFFSET ?`;
+    const dataSql = `SELECT * FROM (${sql}) ${orderBy} LIMIT ? OFFSET ?`;
     const cards = db.prepare(dataSql).all(...params, parseInt(limit), offset);
 
     // Calculate percentage change

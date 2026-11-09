@@ -21,6 +21,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRarity, setSelectedRarity] = useState('');
   const [selectedSort, setSelectedSort] = useState('price_desc');
+  const [gradedOnly, setGradedOnly] = useState(false);
   const [page, setPage] = useState(1);
 
   // UI States
@@ -76,6 +77,7 @@ export default function App() {
         search: searchQuery,
         rarity: selectedRarity,
         sort: selectedSort,
+        graded_only: gradedOnly,
         page,
         limit: 24
       });
@@ -86,7 +88,7 @@ export default function App() {
     } finally {
       setIsLoadingCards(false);
     }
-  }, [selectedGame, selectedSets, searchQuery, selectedRarity, selectedSort, page]);
+  }, [selectedGame, selectedSets, searchQuery, selectedRarity, selectedSort, gradedOnly, page]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -148,6 +150,7 @@ export default function App() {
     setSearchQuery('');
     setSelectedRarity('');
     setSelectedSort('price_desc');
+    setGradedOnly(false);
     setPage(1);
   };
 
@@ -207,6 +210,11 @@ export default function App() {
             selectedSort={selectedSort}
             onSelectSort={(sort) => {
               setSelectedSort(sort);
+              setPage(1);
+            }}
+            gradedOnly={gradedOnly}
+            onToggleGradedOnly={() => {
+              setGradedOnly(prev => !prev);
               setPage(1);
             }}
             onClearFilters={handleClearFilters}

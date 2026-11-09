@@ -34,6 +34,7 @@ export async function fetchCards(params = {}) {
   if (params.search) query.append('search', params.search);
   if (params.rarity) query.append('rarity', params.rarity);
   if (params.sort) query.append('sort', params.sort);
+  if (params.graded_only) query.append('graded_only', 'true');
   if (params.page) query.append('page', params.page);
   if (params.limit) query.append('limit', params.limit || 24);
 

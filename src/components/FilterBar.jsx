@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Filter, ArrowUpDown, X, Check, ChevronDown, CheckSquare, Square, History, Sparkles } from 'lucide-react';
+import { Search, Filter, ArrowUpDown, X, Check, ChevronDown, CheckSquare, Square, History, Sparkles, Award } from 'lucide-react';
 
 export default function FilterBar({
   sets = [],
@@ -13,6 +13,8 @@ export default function FilterBar({
   onSelectRarity,
   selectedSort,
   onSelectSort,
+  gradedOnly = false,
+  onToggleGradedOnly,
   onClearFilters,
   totalResults = 0
 }) {
@@ -32,7 +34,7 @@ export default function FilterBar({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const hasActiveFilters = selectedSets.length > 0 || searchQuery || selectedRarity || selectedSort !== 'price_desc';
+  const hasActiveFilters = selectedSets.length > 0 || searchQuery || selectedRarity || gradedOnly || (selectedSort !== 'price_desc');
 
   const recentCount = sets.filter(s => s.is_recent === 1).length;
   const vintageCount = sets.filter(s => s.is_recent === 0).length;
@@ -285,18 +287,45 @@ export default function FilterBar({
             <Filter className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
 
+          {/* Graded Only Toggle */}
+          <button
+            type="button"
+            onClick={onToggleGradedOnly}
+            className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border shrink-0 ${
+              gradedOnly
+                ? 'bg-amber-950/80 border-amber-500/90 text-amber-200 shadow-md shadow-amber-950/50 ring-1 ring-amber-500/30'
+                : 'bg-slate-950/80 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+            }`}
+            title="Filter to only cards with certified PSA or Beckett graded valuations"
+          >
+            <Award className={`w-3.5 h-3.5 ${gradedOnly ? 'text-amber-400 fill-amber-400/20' : 'text-slate-400'}`} />
+            <span>Graded Only</span>
+          </button>
+
           {/* Sort Selector */}
-          <div className="relative min-w-[160px]">
+          <div className="relative min-w-[210px]">
             <select
               value={selectedSort}
               onChange={(e) => onSelectSort(e.target.value)}
               className="w-full appearance-none px-3.5 py-2 pr-8 bg-slate-950/80 border border-slate-800 focus:border-cyan-500 rounded-xl text-sm text-slate-200 outline-none transition-colors cursor-pointer"
             >
-              <option value="price_desc">Highest Price</option>
-              <option value="price_asc">Lowest Price</option>
-              <option value="psa10_desc">Top Graded (PSA / BGS 10)</option>
-              <option value="name_asc">Card Name (A-Z)</option>
-              <option value="number_asc">Card Number</option>
+              <optgroup label="Market / Raw Price" className="bg-slate-900 text-slate-400 font-semibold">
+                <option value="price_desc" className="bg-slate-950 text-slate-200 font-normal">Highest Raw Price</option>
+                <option value="price_asc" className="bg-slate-950 text-slate-200 font-normal">Lowest Raw Price</option>
+              </optgroup>
+              <optgroup label="Certified Graded Pricing" className="bg-slate-900 text-amber-400/90 font-semibold">
+                <option value="graded_desc" className="bg-slate-950 text-slate-200 font-normal">Graded: High to Low (PSA / BGS 10)</option>
+                <option value="graded_asc" className="bg-slate-950 text-slate-200 font-normal">Graded: Low to High (PSA / BGS 10)</option>
+                <option value="psa10_only_desc" className="bg-slate-950 text-slate-200 font-normal">PSA 10: High to Low</option>
+                <option value="bgs10_only_desc" className="bg-slate-950 text-slate-200 font-normal">BGS 10: High to Low</option>
+                <option value="graded_premium_desc" className="bg-slate-950 text-slate-200 font-normal">Graded Premium (vs Raw)</option>
+                {/* Fallback support for psa10_desc */}
+                <option value="psa10_desc" className="hidden">Top Graded (PSA / BGS 10)</option>
+              </optgroup>
+              <optgroup label="Card Details" className="bg-slate-900 text-slate-400 font-semibold">
+                <option value="name_asc" className="bg-slate-950 text-slate-200 font-normal">Card Name (A-Z)</option>
+                <option value="number_asc" className="bg-slate-950 text-slate-200 font-normal">Card Number</option>
+              </optgroup>
             </select>
             <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
