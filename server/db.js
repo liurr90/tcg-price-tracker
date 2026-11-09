@@ -91,7 +91,14 @@ function initSchema() {
     CREATE INDEX IF NOT EXISTS idx_cards_number ON cards(card_number);
     CREATE INDEX IF NOT EXISTS idx_prices_card_date ON price_history(card_id, recorded_at);
     CREATE INDEX IF NOT EXISTS idx_sets_game ON sets(game_id);
+    CREATE INDEX IF NOT EXISTS idx_cards_is_sealed ON cards(is_sealed);
   `);
+
+  try {
+    db.prepare('ALTER TABLE cards ADD COLUMN is_sealed INTEGER DEFAULT 0').run();
+  } catch {
+    // Column already exists
+  }
 
   // Seed default games
   const insertGame = db.prepare(`

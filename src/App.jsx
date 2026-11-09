@@ -22,6 +22,7 @@ export default function App() {
   const [selectedRarity, setSelectedRarity] = useState('');
   const [selectedSort, setSelectedSort] = useState('price_desc');
   const [gradedOnly, setGradedOnly] = useState(false);
+  const [productType, setProductType] = useState('all'); // 'all', 'singles', 'sealed'
   const [page, setPage] = useState(1);
 
   // UI States
@@ -79,6 +80,7 @@ export default function App() {
         rarity: selectedRarity,
         sort: selectedSort,
         graded_only: gradedOnly,
+        product_type: productType,
         page,
         limit: 24
       });
@@ -89,7 +91,7 @@ export default function App() {
     } finally {
       if (!isSilent) setIsLoadingCards(false);
     }
-  }, [selectedGame, selectedSets, searchQuery, selectedRarity, selectedSort, gradedOnly, page]);
+  }, [selectedGame, selectedSets, searchQuery, selectedRarity, selectedSort, gradedOnly, productType, page]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -152,6 +154,7 @@ export default function App() {
     setSelectedRarity('');
     setSelectedSort('price_desc');
     setGradedOnly(false);
+    setProductType('all');
     setPage(1);
   };
 
@@ -216,6 +219,11 @@ export default function App() {
             gradedOnly={gradedOnly}
             onToggleGradedOnly={() => {
               setGradedOnly(prev => !prev);
+              setPage(1);
+            }}
+            productType={productType}
+            onSelectProductType={(type) => {
+              setProductType(type);
               setPage(1);
             }}
             onClearFilters={handleClearFilters}

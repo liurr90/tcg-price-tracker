@@ -14,6 +14,7 @@ const { ingestOnePiece } = require('./ingestors/onepiece');
 const { ingestFusionWorld } = require('./ingestors/fusionworld');
 const { ingestGundam } = require('./ingestors/gundam');
 const { ingestRiftbound } = require('./ingestors/riftbound');
+const { ingestAllSealedProducts } = require('./ingestors/sealedIngestor');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -83,6 +84,8 @@ startScheduler();
 app.get('/api/stats', (req, res) => {
   try {
     const totalCards = db.prepare('SELECT COUNT(*) as count FROM cards').get().count;
+    const totalSealed = db.prepare('SELECT COUNT(*) as count FROM cards WHERE is_sealed = 1').get().count;
+    const totalSingles = db.prepare('SELECT COUNT(*) as count FROM cards WHERE is_sealed = 0 OR is_sealed IS NULL').get().count;
     const totalSets = db.prepare('SELECT COUNT(*) as count FROM sets').get().count;
     const activeSets = db.prepare("SELECT COUNT(*) as count FROM sets WHERE status = 'active'").get().count;
     const backlogSets = db.prepare("SELECT COUNT(*) as count FROM sets WHERE status = 'todo_backlog'").get().count;
@@ -92,7 +95,9 @@ app.get('/api/stats', (req, res) => {
       SELECT g.id, g.name, g.code, g.color_theme,
              (SELECT COUNT(*) FROM sets s WHERE s.game_id = g.id AND s.status = 'active') as active_sets,
              (SELECT COUNT(*) FROM sets s WHERE s.game_id = g.id AND s.status = 'todo_backlog') as backlog_sets,
-             (SELECT COUNT(*) FROM cards c WHERE c.game_id = g.id) as cards_count
+             (SELECT COUNT(*) FROM cards c WHERE c.game_id = g.id) as cards_count,
+             (SELECT COUNT(*) FROM cards c WHERE c.game_id = g.id AND c.is_sealed = 1) as sealed_count,
+             (SELECT COUNT(*) FROM cards c WHERE c.game_id = g.id AND (c.is_sealed = 0 OR c.is_sealed IS NULL)) as singles_count
       FROM games g
     `).all();
 
@@ -100,6 +105,8 @@ app.get('/api/stats', (req, res) => {
 
     res.json({
       totalCards,
+      totalSealed,
+      totalSingles,
       totalSets,
       activeSets,
       backlogSets,
@@ -193,7 +200,7 @@ app.get('/api/sets', (req, res) => {
 // GET /api/cards
 app.get('/api/cards', (req, res) => {
   try {
-    const { game, set, sets, search, rarity, sort = 'price_desc', graded_only, page = 1, limit = 24 } = req.query;
+    const { game, set, sets, search, rarity, sort = 'price_desc', graded_only, product_type, sealed, page = 1, limit = 24 } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
     let whereClause = 'WHERE 1=1';
@@ -202,6 +209,13 @@ app.get('/api/cards', (req, res) => {
     if (game) {
       whereClause += ' AND c.game_id = ?';
       params.push(game);
+    }
+
+    const typeFilter = product_type || (sealed === 'true' || sealed === '1' ? 'sealed' : sealed === 'false' || sealed === '0' ? 'singles' : 'all');
+    if (typeFilter === 'sealed') {
+      whereClause += ' AND c.is_sealed = 1';
+    } else if (typeFilter === 'singles') {
+      whereClause += ' AND (c.is_sealed = 0 OR c.is_sealed IS NULL)';
     }
     
     // Support single set or multiple sets (comma-separated or array)
@@ -226,8 +240,17 @@ app.get('/api/cards', (req, res) => {
       params.push(`%${rarity}%`);
     }
     if (search) {
-      whereClause += ' AND (c.name LIKE ? OR c.card_number LIKE ?)';
-      params.push(`%${search}%`, `%${search}%`);
+      const terms = search.trim().split(/\s+/).filter(Boolean);
+      if (terms.length === 1) {
+        whereClause += ' AND (c.name LIKE ? OR c.card_number LIKE ?)';
+        params.push(`%${terms[0]}%`, `%${terms[0]}%`);
+      } else if (terms.length > 1) {
+        const termClauses = terms.map(() => '(c.name LIKE ? OR c.card_number LIKE ?)');
+        whereClause += ` AND (${termClauses.join(' AND ')})`;
+        for (const t of terms) {
+          params.push(`%${t}%`, `%${t}%`);
+        }
+      }
     }
 
     if (graded_only === 'true' || graded_only === '1') {
@@ -463,6 +486,9 @@ app.post('/api/sync/metadata', async (req, res) => {
     }
     if (game === 'all' || game === 'riftbound') {
       results.riftbound = await ingestRiftbound();
+    }
+    if (game === 'all' || game === 'sealed') {
+      results.sealed = await ingestAllSealedProducts();
     }
 
     // Refresh pricing for any new cards

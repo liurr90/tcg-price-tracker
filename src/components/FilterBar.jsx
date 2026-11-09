@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Filter, ArrowUpDown, X, Check, ChevronDown, CheckSquare, Square, History, Sparkles, Award } from 'lucide-react';
+import { Search, Filter, ArrowUpDown, X, Check, ChevronDown, CheckSquare, Square, History, Sparkles, Award, Package, Layers } from 'lucide-react';
 
 export default function FilterBar({
   sets = [],
@@ -15,6 +15,8 @@ export default function FilterBar({
   onSelectSort,
   gradedOnly = false,
   onToggleGradedOnly,
+  productType = 'all',
+  onSelectProductType,
   onClearFilters,
   totalResults = 0
 }) {
@@ -34,7 +36,7 @@ export default function FilterBar({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const hasActiveFilters = selectedSets.length > 0 || searchQuery || selectedRarity || gradedOnly || (selectedSort !== 'price_desc');
+  const hasActiveFilters = selectedSets.length > 0 || searchQuery || selectedRarity || gradedOnly || productType !== 'all' || (selectedSort !== 'price_desc');
 
   const recentCount = sets.filter(s => s.is_recent === 1).length;
   const vintageCount = sets.filter(s => s.is_recent === 0).length;
@@ -285,6 +287,48 @@ export default function FilterBar({
               ))}
             </select>
             <Filter className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
+
+          {/* Sealed / Singles / All Segmented Filter */}
+          <div className="flex items-center p-0.5 bg-slate-950/80 border border-slate-800 rounded-xl">
+            <button
+              type="button"
+              onClick={() => onSelectProductType && onSelectProductType('all')}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                productType === 'all'
+                  ? 'bg-slate-800 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Show all items (singles & sealed)"
+            >
+              <Layers className="w-3.5 h-3.5 text-cyan-400" />
+              <span>All</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onSelectProductType && onSelectProductType('singles')}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer ${
+                productType === 'singles'
+                  ? 'bg-cyan-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Filter to individual trading cards only"
+            >
+              <span>Singles</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onSelectProductType && onSelectProductType('sealed')}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                productType === 'sealed'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Filter to sealed booster boxes, cases, ETBs, and starter decks"
+            >
+              <Package className="w-3.5 h-3.5 text-emerald-300" />
+              <span>Sealed</span>
+            </button>
           </div>
 
           {/* Graded Only Toggle */}

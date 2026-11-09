@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, Zap, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Zap, ShieldCheck, CheckCircle2, Package } from 'lucide-react';
 import { getCardImageUrl } from '../lib/imageHelper';
 
 const GAME_BADGES = {
@@ -90,11 +90,19 @@ export default function CardCard({ card, onSelect, onLiveCheck }) {
         <div>
           {/* Header row: Game & Card Number */}
           <div className="flex items-center justify-between text-xs mb-1">
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${gameBadge}`}>
-              {card.game_code || card.game_id}
-            </span>
-            <span className="font-mono text-slate-400 text-[11px]">
-              {card.card_number}
+            <div className="flex items-center gap-1.5">
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${gameBadge}`}>
+                {card.game_code || card.game_id}
+              </span>
+              {card.is_sealed === 1 && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-emerald-950/80 text-emerald-300 border-emerald-800/60 flex items-center gap-1">
+                  <Package className="w-2.5 h-2.5" />
+                  <span>Sealed</span>
+                </span>
+              )}
+            </div>
+            <span className="font-mono text-slate-400 text-[11px] truncate max-w-[100px]">
+              {card.is_sealed === 1 ? (card.card_type || 'Sealed') : card.card_number}
             </span>
           </div>
 

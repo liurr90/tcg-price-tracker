@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   X, Zap, TrendingUp, Calendar, Info, RefreshCw, CheckCircle2, 
   ExternalLink, AlertCircle, Store, Globe, Gavel, Scale, ArrowUpRight,
-  Award, Shield
+  Award, Shield, Package
 } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
 import { fetchCardDetails, triggerLiveQuery } from '../lib/api';
@@ -153,6 +153,12 @@ export default function CardModal({ cardId, onClose, onPriceUpdated }) {
                     <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-950/80 text-indigo-300 border border-indigo-800/60">
                       {card.rarity}
                     </span>
+                    {card.is_sealed === 1 && (
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-950/80 text-emerald-300 border border-emerald-800/60 flex items-center gap-1">
+                        <Package className="w-3 h-3" />
+                        <span>Sealed Product</span>
+                      </span>
+                    )}
                   </div>
 
                   <h2 className="text-2xl font-bold text-white tracking-tight">
