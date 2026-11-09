@@ -10,6 +10,12 @@ function isSealedName(name) {
   return SEALED_KEYWORDS.test(name);
 }
 
+function isCaseProduct(name, cardType = '') {
+  if (!name) return false;
+  if (/^sleeves?\b|deck protector|playmat|binder|portfolio/i.test(name)) return false;
+  return /\bcase\b/i.test(name) || /case/i.test(cardType);
+}
+
 function determineCardType(name) {
   if (/case\b/i.test(name)) return 'Booster Box Case';
   if (/display\b/i.test(name)) return 'Booster Display';
@@ -24,28 +30,94 @@ function determineCardType(name) {
 }
 
 /**
+ * Ensure database schema has is_case and case_product_id columns
+ */
+function ensureColumns() {
+  try { db.prepare('ALTER TABLE cards ADD COLUMN is_sealed INTEGER DEFAULT 0').run(); } catch {}
+  try { db.prepare('ALTER TABLE cards ADD COLUMN is_case INTEGER DEFAULT 0').run(); } catch {}
+  try { db.prepare('ALTER TABLE cards ADD COLUMN case_product_id TEXT').run(); } catch {}
+  db.exec('CREATE INDEX IF NOT EXISTS idx_cards_is_sealed ON cards(is_sealed);');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_cards_is_case ON cards(is_case);');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_cards_case_product_id ON cards(case_product_id);');
+}
+
+/**
  * Update existing cards in the DB that match sealed product keywords
  */
 function classifyExistingCards() {
   console.log('[Sealed Ingestor] Classifying existing sealed items in cards table...');
-  const allCards = db.prepare('SELECT id, name, card_type FROM cards').all();
+  ensureColumns();
 
-  const updateStmt = db.prepare('UPDATE cards SET is_sealed = 1, card_type = ? WHERE id = ?');
+  const allCards = db.prepare('SELECT id, name, card_type FROM cards').all();
+  const updateSealedStmt = db.prepare('UPDATE cards SET is_sealed = 1, is_case = ?, card_type = ? WHERE id = ?');
+  const updateSinglesStmt = db.prepare('UPDATE cards SET is_sealed = 0, is_case = 0 WHERE id = ?');
   let count = 0;
 
   const tx = db.transaction(() => {
     for (const c of allCards) {
       if (isSealedName(c.name)) {
         const type = determineCardType(c.name);
-        updateStmt.run(type, c.id);
+        const isCase = isCaseProduct(c.name, type) ? 1 : 0;
+        updateSealedStmt.run(isCase, type, c.id);
         count++;
+      } else {
+        updateSinglesStmt.run(c.id);
       }
     }
   });
 
   tx();
   console.log(`[Sealed Ingestor] Marked ${count} existing cards as is_sealed = 1.`);
+  linkBoxesAndCases();
   return count;
+}
+
+/**
+ * Link each individual sealed product (Box / Display / Bundle / Deck) to its Case listing
+ * and vice versa.
+ */
+function linkBoxesAndCases() {
+  console.log('[Sealed Ingestor] Linking Boxes and Cases...');
+  const cases = db.prepare('SELECT id, game_id, name, set_id FROM cards WHERE is_sealed = 1 AND is_case = 1').all();
+  const boxes = db.prepare('SELECT id, game_id, name, set_id FROM cards WHERE is_sealed = 1 AND is_case = 0').all();
+
+  const norm = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const updatePairStmt = db.prepare('UPDATE cards SET case_product_id = ? WHERE id = ?');
+
+  let paired = 0;
+  const tx = db.transaction(() => {
+    for (const kase of cases) {
+      const stripped = kase.name.replace(/\s*case\b/gi, '').trim();
+      const strippedNorm = norm(stripped);
+      const gameBoxes = boxes.filter(b => b.game_id === kase.game_id);
+
+      // 1. Exact match on stripped name
+      let match = gameBoxes.find(b => norm(b.name) === strippedNorm);
+
+      // 2. Exact match within same set
+      if (!match) {
+        match = gameBoxes.find(b => b.set_id === kase.set_id && (norm(b.name).includes(strippedNorm) || strippedNorm.includes(norm(b.name))));
+      }
+
+      // 3. Fallback: startsWith / endsWith match
+      if (!match) {
+        match = gameBoxes.find(b => {
+          const bNorm = norm(b.name);
+          return (bNorm.length >= 8 && strippedNorm.length >= 8) && (bNorm.startsWith(strippedNorm) || strippedNorm.startsWith(bNorm));
+        });
+      }
+
+      if (match) {
+        updatePairStmt.run(kase.id, match.id);
+        updatePairStmt.run(match.id, kase.id);
+        paired++;
+      }
+    }
+  });
+
+  tx();
+  console.log(`[Sealed Ingestor] Successfully paired ${paired} Boxes <-> Cases.`);
+  return paired;
 }
 
 /**
@@ -53,14 +125,7 @@ function classifyExistingCards() {
  */
 async function ingestAllSealedProducts() {
   console.log('[Sealed Ingestor] Starting sealed products ingestion for all TCGs...');
-
-  // Ensure is_sealed column and index exist
-  try {
-    db.prepare('ALTER TABLE cards ADD COLUMN is_sealed INTEGER DEFAULT 0').run();
-  } catch {
-    // Column already exists
-  }
-  db.exec('CREATE INDEX IF NOT EXISTS idx_cards_is_sealed ON cards(is_sealed);');
+  ensureColumns();
 
   // Step 1: Mark all existing cards
   classifyExistingCards();
@@ -78,9 +143,7 @@ async function ingestAllSealedProducts() {
     });
 
     if (found) return found.id;
-    // Fallback: return first active set or create generic sealed set
-    const fallback = gameSets[0]?.id || `${gameId}-sealed`;
-    return fallback;
+    return gameSets[0]?.id || `${gameId}-sealed`;
   }
 
   const GAME_CONFIGS = [
@@ -115,8 +178,8 @@ async function ingestAllSealedProducts() {
     INSERT OR REPLACE INTO cards (
       id, game_id, set_id, card_number, name, rarity, card_type, 
       color, attribute, cost_or_level, power, image_url, description, 
-      is_alt_art, is_sealed, raw_data, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      is_alt_art, is_sealed, is_case, raw_data, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
   `);
 
   const insertPrice = db.prepare(`
@@ -173,6 +236,7 @@ async function ingestAllSealedProducts() {
         const cardId = `${cfg.gameId}-${item.productId}`;
         const setId = findBestSet(cfg.gameId, item.setName);
         const cardType = determineCardType(item.productName);
+        const isCase = isCaseProduct(item.productName, cardType) ? 1 : 0;
         const imageUrl = `https://tcgplayer-cdn.tcgplayer.com/product/${item.productId}_in_1000x1000.jpg`;
         const description = (item.customAttributes?.description || '').replace(/<[^>]+>/g, ' ');
 
@@ -192,6 +256,7 @@ async function ingestAllSealedProducts() {
           description,
           0,
           1, // is_sealed = 1
+          isCase, // is_case = 1 or 0
           JSON.stringify(item)
         );
 
@@ -201,7 +266,6 @@ async function ingestAllSealedProducts() {
           const highPrice = parseFloat((marketPrice * 1.25).toFixed(2));
           const sourceUrl = `https://www.tcgplayer.com/product/${item.productId}`;
 
-          // Delete duplicate price for today if already present
           db.prepare('DELETE FROM price_history WHERE card_id = ? AND recorded_at = ? AND source = ?')
             .run(cardId, todayStr, 'tcgplayer_market');
 
@@ -221,6 +285,9 @@ async function ingestAllSealedProducts() {
     insertTx(items);
   }
 
+  // Pair all boxes with their cases
+  linkBoxesAndCases();
+
   console.log(`[Sealed Ingestor] Completed! Ingested/updated ${totalNewSealed} sealed products across all games.`);
   return totalNewSealed;
 }
@@ -228,6 +295,8 @@ async function ingestAllSealedProducts() {
 module.exports = {
   ingestAllSealedProducts,
   classifyExistingCards,
+  linkBoxesAndCases,
   isSealedName,
+  isCaseProduct,
   determineCardType
 };

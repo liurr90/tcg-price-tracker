@@ -36,6 +36,7 @@ export async function fetchCards(params = {}) {
   if (params.sort) query.append('sort', params.sort);
   if (params.graded_only) query.append('graded_only', 'true');
   if (params.product_type) query.append('product_type', params.product_type);
+  if (params.sealed_type) query.append('sealed_type', params.sealed_type);
   if (params.page) query.append('page', params.page);
   if (params.limit) query.append('limit', params.limit || 24);
 

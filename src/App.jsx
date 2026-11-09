@@ -23,6 +23,7 @@ export default function App() {
   const [selectedSort, setSelectedSort] = useState('price_desc');
   const [gradedOnly, setGradedOnly] = useState(false);
   const [productType, setProductType] = useState('all'); // 'all', 'singles', 'sealed'
+  const [sealedType, setSealedType] = useState('boxes'); // 'boxes' (default), 'cases', 'all_sealed'
   const [page, setPage] = useState(1);
 
   // UI States
@@ -81,6 +82,7 @@ export default function App() {
         sort: selectedSort,
         graded_only: gradedOnly,
         product_type: productType,
+        sealed_type: sealedType,
         page,
         limit: 24
       });
@@ -91,7 +93,7 @@ export default function App() {
     } finally {
       if (!isSilent) setIsLoadingCards(false);
     }
-  }, [selectedGame, selectedSets, searchQuery, selectedRarity, selectedSort, gradedOnly, productType, page]);
+  }, [selectedGame, selectedSets, searchQuery, selectedRarity, selectedSort, gradedOnly, productType, sealedType, page]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -155,6 +157,7 @@ export default function App() {
     setSelectedSort('price_desc');
     setGradedOnly(false);
     setProductType('all');
+    setSealedType('boxes');
     setPage(1);
   };
 
@@ -226,6 +229,11 @@ export default function App() {
               setProductType(type);
               setPage(1);
             }}
+            sealedType={sealedType}
+            onSelectSealedType={(st) => {
+              setSealedType(st);
+              setPage(1);
+            }}
             onClearFilters={handleClearFilters}
             totalResults={pagination.totalCount}
           />
@@ -250,6 +258,7 @@ export default function App() {
         <CardModal
           cardId={selectedCardId}
           onClose={() => setSelectedCardId(null)}
+          onNavigate={(id) => setSelectedCardId(id)}
           onPriceUpdated={() => {
             loadCards({ silent: true });
             fetchStats().then(setStats);

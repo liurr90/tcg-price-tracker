@@ -17,6 +17,8 @@ export default function FilterBar({
   onToggleGradedOnly,
   productType = 'all',
   onSelectProductType,
+  sealedType = 'boxes',
+  onSelectSealedType,
   onClearFilters,
   totalResults = 0
 }) {
@@ -36,7 +38,7 @@ export default function FilterBar({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const hasActiveFilters = selectedSets.length > 0 || searchQuery || selectedRarity || gradedOnly || productType !== 'all' || (selectedSort !== 'price_desc');
+  const hasActiveFilters = selectedSets.length > 0 || searchQuery || selectedRarity || gradedOnly || productType !== 'all' || (productType === 'sealed' && sealedType !== 'boxes') || (selectedSort !== 'price_desc');
 
   const recentCount = sets.filter(s => s.is_recent === 1).length;
   const vintageCount = sets.filter(s => s.is_recent === 0).length;
@@ -330,6 +332,48 @@ export default function FilterBar({
               <span>Sealed</span>
             </button>
           </div>
+
+          {/* Sealed Sub-category (Distinguish Cases from Boxes/Displays) */}
+          {productType === 'sealed' && (
+            <div className="flex items-center p-0.5 bg-slate-950/80 border border-emerald-900/60 rounded-xl animate-in fade-in zoom-in-95 duration-150">
+              <button
+                type="button"
+                onClick={() => onSelectSealedType && onSelectSealedType('boxes')}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  sealedType === 'boxes'
+                    ? 'bg-emerald-700 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Boxes, Displays, ETBs & Packs (Cases hidden by default)"
+              >
+                Boxes & Packs
+              </button>
+              <button
+                type="button"
+                onClick={() => onSelectSealedType && onSelectSealedType('cases')}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  sealedType === 'cases'
+                    ? 'bg-amber-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="View Cases of product only"
+              >
+                Cases Only
+              </button>
+              <button
+                type="button"
+                onClick={() => onSelectSealedType && onSelectSealedType('all_sealed')}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  sealedType === 'all_sealed'
+                    ? 'bg-slate-800 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="View all sealed products (Boxes + Cases)"
+              >
+                All Sealed
+              </button>
+            </div>
+          )}
 
           {/* Graded Only Toggle */}
           <button

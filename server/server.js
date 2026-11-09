@@ -200,7 +200,11 @@ app.get('/api/sets', (req, res) => {
 // GET /api/cards
 app.get('/api/cards', (req, res) => {
   try {
-    const { game, set, sets, search, rarity, sort = 'price_desc', graded_only, product_type, sealed, page = 1, limit = 24 } = req.query;
+    const { 
+      game, set, sets, search, rarity, sort = 'price_desc', 
+      graded_only, product_type, sealed, sealed_type, 
+      page = 1, limit = 24 
+    } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
     let whereClause = 'WHERE 1=1';
@@ -214,8 +218,22 @@ app.get('/api/cards', (req, res) => {
     const typeFilter = product_type || (sealed === 'true' || sealed === '1' ? 'sealed' : sealed === 'false' || sealed === '0' ? 'singles' : 'all');
     if (typeFilter === 'sealed') {
       whereClause += ' AND c.is_sealed = 1';
+      // By default, don't show cases unless sealed_type is 'cases' or 'all_sealed'
+      if (sealed_type === 'cases') {
+        whereClause += ' AND c.is_case = 1';
+      } else if (sealed_type === 'all' || sealed_type === 'all_sealed') {
+        // show both boxes and cases
+      } else {
+        // Default: boxes & packs only (no cases!)
+        whereClause += ' AND (c.is_case = 0 OR c.is_case IS NULL)';
+      }
     } else if (typeFilter === 'singles') {
       whereClause += ' AND (c.is_sealed = 0 OR c.is_sealed IS NULL)';
+    } else {
+      // By default in 'all', don't show cases unless user specifically searched for 'case'
+      if (!search || !/case\b/i.test(search)) {
+        whereClause += ' AND (c.is_case = 0 OR c.is_case IS NULL)';
+      }
     }
     
     // Support single set or multiple sets (comma-separated or array)
@@ -395,6 +413,30 @@ app.get('/api/cards/:id', (req, res) => {
     const bestBgs10 = prices.slice().reverse().find(p => p.graded_bgs10 !== null && p.graded_bgs10 !== undefined)?.graded_bgs10 ?? null;
     const bestBgsBlack = prices.slice().reverse().find(p => p.graded_bgs10_black !== null && p.graded_bgs10_black !== undefined)?.graded_bgs10_black ?? null;
 
+    let linkedCase = null;
+    let linkedBox = null;
+    if (card.case_product_id) {
+      const linked = db.prepare(`
+        SELECT c.id, c.name, c.card_type, c.is_sealed, c.is_case, c.image_url,
+               p.market_price, p.low_price, p.source_url
+        FROM cards c
+        LEFT JOIN price_history p ON p.id = (
+          SELECT id FROM price_history 
+          WHERE card_id = c.id 
+          ORDER BY recorded_at DESC, id DESC LIMIT 1
+        )
+        WHERE c.id = ?
+      `).get(card.case_product_id);
+
+      if (linked) {
+        if (card.is_case === 1) {
+          linkedBox = linked;
+        } else {
+          linkedCase = linked;
+        }
+      }
+    }
+
     res.json({
       ...card,
       graded_psa10: bestPsa10,
@@ -404,7 +446,9 @@ app.get('/api/cards/:id', (req, res) => {
       price_history: prices,
       latest_price: prices[prices.length - 1] || null,
       sources,
-      discrepancy
+      discrepancy,
+      linked_case: linkedCase,
+      linked_box: linkedBox
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

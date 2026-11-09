@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { 
   X, Zap, TrendingUp, Calendar, Info, RefreshCw, CheckCircle2, 
   ExternalLink, AlertCircle, Store, Globe, Gavel, Scale, ArrowUpRight,
-  Award, Shield, Package
+  Award, Shield, Package, Boxes, ArrowRight
 } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
 import { fetchCardDetails, triggerLiveQuery } from '../lib/api';
 import { getCardImageUrl } from '../lib/imageHelper';
 
-export default function CardModal({ cardId, onClose, onPriceUpdated }) {
+export default function CardModal({ cardId, onClose, onNavigate, onPriceUpdated }) {
   const [card, setCard] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLiveQuerying, setIsLiveQuerying] = useState(false);
@@ -237,6 +237,118 @@ export default function CardModal({ cardId, onClose, onPriceUpdated }) {
 
               </div>
             </div>
+
+            {/* Linked Case Product Banner (When viewing an individual Box/Display that has a Case) */}
+            {card.linked_case && (
+              <div className="bg-gradient-to-r from-emerald-950/40 via-slate-900 to-teal-950/40 border border-emerald-600/40 rounded-3xl p-5 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start sm:items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0 text-emerald-400">
+                    <Boxes className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/80 px-2.5 py-0.5 rounded-md border border-emerald-700/60">
+                        Sealed Case Listing
+                      </span>
+                      <span className="text-xs text-slate-400">Master Factory Case</span>
+                    </div>
+                    <h4 className="text-base font-bold text-white mt-1">
+                      {card.linked_case.name}
+                    </h4>
+                    <div className="flex items-center gap-3 mt-1 text-xs">
+                      <span className="text-slate-400">
+                        Market: <strong className="text-emerald-300 text-sm font-semibold">${Number(card.linked_case.market_price || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                      </span>
+                      {card.linked_case.low_price && (
+                        <span className="text-slate-500">
+                          Low: <span className="text-slate-300">${Number(card.linked_case.low_price).toFixed(2)}</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                  {card.linked_case.source_url && (
+                    <a
+                      href={card.linked_case.source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center gap-1.5 transition-colors"
+                      title="Open Case listing on TCGPlayer"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>TCGPlayer</span>
+                    </a>
+                  )}
+                  {onNavigate && (
+                    <button
+                      onClick={() => onNavigate(card.linked_case.id)}
+                      className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 border border-emerald-500/50 shadow-lg shadow-emerald-900/30 flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <span>View Case</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Linked Individual Box Banner (When viewing a Case that has a single Box listing) */}
+            {card.linked_box && (
+              <div className="bg-gradient-to-r from-cyan-950/40 via-slate-900 to-indigo-950/40 border border-cyan-600/40 rounded-3xl p-5 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start sm:items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center shrink-0 text-cyan-400">
+                    <Package className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-400 bg-cyan-950/80 px-2.5 py-0.5 rounded-md border border-cyan-700/60">
+                        Individual Sealed Box
+                      </span>
+                      <span className="text-xs text-slate-400">Single Box / Display</span>
+                    </div>
+                    <h4 className="text-base font-bold text-white mt-1">
+                      {card.linked_box.name}
+                    </h4>
+                    <div className="flex items-center gap-3 mt-1 text-xs">
+                      <span className="text-slate-400">
+                        Market: <strong className="text-cyan-300 text-sm font-semibold">${Number(card.linked_box.market_price || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                      </span>
+                      {card.linked_box.low_price && (
+                        <span className="text-slate-500">
+                          Low: <span className="text-slate-300">${Number(card.linked_box.low_price).toFixed(2)}</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                  {card.linked_box.source_url && (
+                    <a
+                      href={card.linked_box.source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center gap-1.5 transition-colors"
+                      title="Open Box listing on TCGPlayer"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>TCGPlayer</span>
+                    </a>
+                  )}
+                  {onNavigate && (
+                    <button
+                      onClick={() => onNavigate(card.linked_box.id)}
+                      className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-500 active:bg-cyan-700 border border-cyan-500/50 shadow-lg shadow-cyan-900/30 flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <span>View Box</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Graded Valuations (PSA 10, BGS 10, BGS Black Label, PSA 9) */}
             {(card.graded_psa10 || card.graded_bgs10 || card.graded_bgs10_black || card.graded_psa9) ? (
