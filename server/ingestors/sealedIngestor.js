@@ -8,6 +8,7 @@ function isSealedName(name) {
   if (!name) return false;
   if (/^sleeves?\b|deck protector|playmat|binder|portfolio|card divider/i.test(name)) return false;
   if (/^don!!\b|don!!\s+card/i.test(name)) return false;
+  if (/^code card\b/i.test(name)) return false;
   return SEALED_KEYWORDS.test(name);
 }
 
@@ -18,10 +19,11 @@ function isCaseProduct(name, cardType = '') {
   // Explicit "case"
   if (/\bcase\b/i.test(name) || /case/i.test(cardType)) return true;
 
-  // Wholesale bulk displays that function as cases of consumer units (bundles, double packs, tins)
+  // Wholesale bulk displays that function as cases of consumer units (bundles, double packs, starter decks, tins)
   if (/bundle\s+display\b/i.test(name)) return true;
   if (/double\s+pack.*display\b/i.test(name)) return true;
   if (/tin\s+pack.*display\b/i.test(name)) return true;
+  if (/starter\s+(deck|set).*display\b|deck\s+display\b/i.test(name)) return true;
 
   return false;
 }
@@ -31,6 +33,7 @@ function determineCardType(name) {
   if (/bundle\s+display\b/i.test(name)) return 'Booster Box Case';
   if (/double\s+pack.*display\b/i.test(name)) return 'Booster Box Case';
   if (/tin\s+pack.*display\b/i.test(name)) return 'Booster Box Case';
+  if (/starter\s+(deck|set).*display\b|deck\s+display\b/i.test(name)) return 'Booster Box Case';
   if (/display\b/i.test(name)) return 'Booster Display';
   if (/booster box/i.test(name)) return 'Booster Box';
   if (/elite trainer box|\betb\b/i.test(name)) return 'Elite Trainer Box';
