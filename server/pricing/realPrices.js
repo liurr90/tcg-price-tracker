@@ -42,7 +42,12 @@ async function syncRealOnePiecePrices() {
   const insertTx = db.transaction((list) => {
     for (const item of list) {
       if (!item.card_set_id || !item.market_price) continue;
-      const card = findCard.get(item.card_set_id);
+      // Match by exact variant print (e.g. OP02-004_p1) first, fallback to base card_set_id
+      const variantNum = (item.card_image_id || item.card_set_id || '').trim();
+      let card = findCard.get(variantNum);
+      if (!card) {
+        card = findCard.get(item.card_set_id.trim());
+      }
       if (card) {
         const market = parseFloat(item.market_price);
         const low = item.inventory_price ? parseFloat(item.inventory_price) : parseFloat((market * 0.85).toFixed(2));

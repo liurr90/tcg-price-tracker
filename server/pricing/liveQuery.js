@@ -38,6 +38,8 @@ async function queryLivePrice(cardId) {
   const norm = str => (str || '').toLowerCase().replace(/[-:()]/g, ' ').replace(/\s+/g, ' ').trim();
   const cleanNum = num => String(num || '').replace(/['"]/g, '').split('/')[0].replace(/^0+/, '').trim().toUpperCase();
   const cardNumClean = cleanNum(card.card_number);
+  // Base collector number stripped of variant suffixes for TCGPlayer term filter (e.g. OP02-004 from OP02-004_p1)
+  const baseCardNum = cleanNum(card.card_number.replace(/_[pr]\d+/i, ''));
   const cardNorm = norm(card.name);
 
   const imgUrl = ((card.image_url || '') + ' ' + (card.local_image_path || '')).toLowerCase();
@@ -52,28 +54,38 @@ async function queryLivePrice(cardId) {
     if (!results || results.length === 0) return null;
     if (results.length === 1) return results[0];
 
+    // Priority 1: Match within the same expansion set
+    const setNorm = norm((card.set_name || '').replace(/\[.*?\]\s*/g, ''));
+    const inSet = results.filter(it => {
+      if (!it.setName) return true;
+      const itSet = norm(it.setName);
+      return setNorm.includes(itSet) || itSet.includes(setNorm);
+    });
+    const pool = inSet.length > 0 ? inSet : results;
+
     let match = null;
     if (isSuperAlt) {
-      match = results.find(it => /manga|super alternate|special|\(sp\)/i.test(it.productName || it.cleanName));
+      match = pool.find(it => /manga|super alternate|special|\(sp\)/i.test(it.productName || it.cleanName));
     } else if (isAlt) {
-      match = results.find(it => /alternate art|parallel/i.test(it.productName || it.cleanName) && !/manga|super alternate/i.test(it.productName || it.cleanName));
+      match = pool.find(it => /alternate art|parallel/i.test(it.productName || it.cleanName) && !/manga|super alternate|\(sp\)/i.test(it.productName || it.cleanName));
     } else {
-      match = results.find(it => !/manga|super alternate|special|\(sp\)|alternate art|parallel/i.test(it.productName || it.cleanName));
+      match = pool.find(it => !/manga|super alternate|special|\(sp\)|alternate art|parallel/i.test(it.productName || it.cleanName));
     }
 
     if (!match && existing && existing.market_price > 0) {
-      match = results.slice().sort((a, b) => {
+      match = pool.slice().sort((a, b) => {
         const diffA = Math.abs(parseFloat(a.marketPrice) - existing.market_price);
         const diffB = Math.abs(parseFloat(b.marketPrice) - existing.market_price);
         return diffA - diffB;
       })[0];
     }
 
-    return match || results[0];
+    return match || pool[0];
   }
 
   // Strategy 1: Exact Card Number search on TCGPlayer (best for One Piece, Fusion World, Gundam variants)
-  if (cardNumClean && cardNumClean.length >= 2) {
+  const targetNum = baseCardNum || cardNumClean;
+  if (targetNum && targetNum.length >= 2) {
     try {
       const numRes = await fetch(TCGPLAYER_SEARCH_API, {
         method: 'POST',
@@ -85,7 +97,7 @@ async function queryLivePrice(cardId) {
           algorithm: 'sales_synonym_v2',
           from: 0,
           size: 25,
-          filters: { term: { number: [cardNumClean] } }
+          filters: { term: { number: [targetNum] } }
         })
       });
 
@@ -354,8 +366,11 @@ async function queryLivePrice(cardId) {
       high_price: highPrice,
       graded_psa10: psa10,
       graded_psa9: psa9,
+      graded_bgs10: bgs10,
+      graded_bgs10_black: bgs10Black,
       currency: 'USD',
       tcg_url: tcgProductUrl,
+      source_url: tcgProductUrl,
       sources_updated: ['tcgplayer_live', 'cardmarket', 'ebay_sold'],
       timestamp: new Date().toISOString()
     };

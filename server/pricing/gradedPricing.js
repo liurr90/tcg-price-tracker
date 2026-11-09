@@ -108,10 +108,12 @@ async function fetchPsaPrices(card) {
                     || rows.find(r => /manga|super alternate|special|\bsp\b/i.test(r[3]))
                     || rows.find(r => r[3].includes(baseNum) || r[2].includes(baseNum.toLowerCase()));
         } else if (isAlt) {
-          matchedRow = rows.find(r => /alternate art|parallel/i.test(r[3]) && !/manga|super/i.test(r[3]))
+          matchedRow = rows.find(r => /alternate art|parallel/i.test(r[3]) && !/manga|super|\bsp\b|special|championship|prb/i.test(r[3]) && (r[3].includes(baseNum) || r[2].includes(baseNum.toLowerCase())))
+                    || rows.find(r => /alternate art|parallel/i.test(r[3]) && !/manga|super/i.test(r[3]))
                     || rows.find(r => r[3].includes(baseNum) || r[2].includes(baseNum.toLowerCase()));
         } else {
-          matchedRow = rows.find(r => (r[3].includes(baseNum) || r[2].includes(baseNum.toLowerCase())) && !/alternate art|parallel|manga|super/i.test(r[3]))
+          matchedRow = rows.find(r => (r[3].includes(baseNum) || r[2].includes(baseNum.toLowerCase())) && !/alternate art|parallel|manga|super|\bsp\b|special|championship|prb/i.test(r[3]))
+                    || rows.find(r => (r[3].includes(baseNum) || r[2].includes(baseNum.toLowerCase())) && !/alternate art|parallel|manga|super/i.test(r[3]))
                     || rows.find(r => r[3].includes(baseNum) || r[2].includes(baseNum.toLowerCase()))
                     || rows[0];
         }
