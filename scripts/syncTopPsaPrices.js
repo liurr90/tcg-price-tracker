@@ -42,7 +42,7 @@ async function main() {
   const query = `
     WITH RankedCards AS (
       SELECT c.id, c.name, c.card_number, c.game_id, c.set_id, s.name as set_name,
-             p.market_price, p.graded_psa10, p.graded_psa9,
+             p.market_price, p.graded_psa10, p.graded_psa9, p.graded_bgs10, p.graded_bgs10_black,
              ROW_NUMBER() OVER (PARTITION BY c.set_id ORDER BY p.market_price DESC NULLS LAST) as rank_in_set
       FROM cards c
       JOIN sets s ON c.set_id = s.id
@@ -58,7 +58,7 @@ async function main() {
   `;
 
   const candidates = db.prepare(query).all(...params);
-  console.log(`[PSA Sync] Found ${candidates.length} grail candidates to check for PSA grading.`);
+  console.log(`[PSA/BGS Sync] Found ${candidates.length} grail candidates to check for grading.`);
 
   let updatedCount = 0;
   let skippedCount = 0;
@@ -68,20 +68,21 @@ async function main() {
     const card = candidates[i];
     const progress = `[${i + 1}/${candidates.length}]`;
 
-    // If card already has PSA 10 and PSA 9 stored, skip to conserve requests
-    if (card.graded_psa10 && card.graded_psa9) {
-      console.log(`${progress} Skipped (already has PSA data): ${card.name} (${card.card_number}) -> PSA 10: $${card.graded_psa10}`);
+    // If card already has PSA 10 or BGS 10 stored, skip to conserve requests
+    if (card.graded_psa10 && card.graded_bgs10) {
+      console.log(`${progress} Skipped (already has PSA & BGS data): ${card.name} (${card.card_number}) -> PSA 10: $${card.graded_psa10} | BGS 10: $${card.graded_bgs10}`);
       skippedCount++;
       continue;
     }
 
     try {
       const result = await updateCardPsaPrices(card.id);
-      if (result && (result.psa10 || result.psa9)) {
+      if (result && (result.psa10 || result.psa9 || result.bgs10 || result.bgs10_black)) {
         updatedCount++;
-        console.log(`${progress} ✅ ${card.game_id} | ${card.name} (${card.card_number}) [${card.set_name}]: PSA 10: $${result.psa10 || '--'} | PSA 9: $${result.psa9 || '--'}`);
+        const bgsMsg = result.bgs10_black ? `BGS 10: $${result.bgs10 || '--'} (Black: $${result.bgs10_black})` : `BGS 10: $${result.bgs10 || '--'}`;
+        console.log(`${progress} ✅ ${card.game_id} | ${card.name} (${card.card_number}) [${card.set_name}]: PSA 10: $${result.psa10 || '--'} | ${bgsMsg} | PSA 9: $${result.psa9 || '--'}`);
       } else {
-        console.log(`${progress} ⚪ No PSA comps found for: ${card.name} (${card.card_number}) [${card.set_name}]`);
+        console.log(`${progress} ⚪ No graded comps found for: ${card.name} (${card.card_number}) [${card.set_name}]`);
       }
     } catch (err) {
       failedCount++;

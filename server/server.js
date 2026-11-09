@@ -223,7 +223,12 @@ app.get('/api/cards', (req, res) => {
       SELECT c.*, 
              s.name as set_name, s.code as set_code, s.is_recent as set_is_recent,
              g.name as game_name, g.color_theme,
-             p.market_price, p.low_price, p.high_price, p.graded_psa10, p.graded_psa9, p.source as price_source, p.recorded_at as price_updated_at,
+             p.market_price, p.low_price, p.high_price, 
+             (SELECT graded_psa10 FROM price_history WHERE card_id = c.id AND graded_psa10 IS NOT NULL ORDER BY recorded_at DESC, id DESC LIMIT 1) as graded_psa10,
+             (SELECT graded_psa9 FROM price_history WHERE card_id = c.id AND graded_psa9 IS NOT NULL ORDER BY recorded_at DESC, id DESC LIMIT 1) as graded_psa9,
+             (SELECT graded_bgs10 FROM price_history WHERE card_id = c.id AND graded_bgs10 IS NOT NULL ORDER BY recorded_at DESC, id DESC LIMIT 1) as graded_bgs10,
+             (SELECT graded_bgs10_black FROM price_history WHERE card_id = c.id AND graded_bgs10_black IS NOT NULL ORDER BY recorded_at DESC, id DESC LIMIT 1) as graded_bgs10_black,
+             p.source as price_source, p.recorded_at as price_updated_at,
              prev.market_price as prev_market_price
       FROM cards c
       JOIN sets s ON c.set_id = s.id
@@ -247,7 +252,7 @@ app.get('/api/cards', (req, res) => {
     if (sort === 'price_asc') orderBy = 'ORDER BY p.market_price ASC NULLS LAST';
     else if (sort === 'name_asc') orderBy = 'ORDER BY c.name ASC';
     else if (sort === 'number_asc') orderBy = 'ORDER BY c.card_number ASC';
-    else if (sort === 'psa10_desc') orderBy = 'ORDER BY p.graded_psa10 DESC NULLS LAST';
+    else if (sort === 'psa10_desc') orderBy = 'ORDER BY COALESCE(graded_bgs10_black, graded_bgs10, graded_psa10) DESC NULLS LAST';
 
     const countSql = `
       SELECT COUNT(*) as count 
@@ -329,11 +334,15 @@ app.get('/api/cards/:id', (req, res) => {
 
     const bestPsa10 = prices.slice().reverse().find(p => p.graded_psa10 !== null && p.graded_psa10 !== undefined)?.graded_psa10 ?? null;
     const bestPsa9 = prices.slice().reverse().find(p => p.graded_psa9 !== null && p.graded_psa9 !== undefined)?.graded_psa9 ?? null;
+    const bestBgs10 = prices.slice().reverse().find(p => p.graded_bgs10 !== null && p.graded_bgs10 !== undefined)?.graded_bgs10 ?? null;
+    const bestBgsBlack = prices.slice().reverse().find(p => p.graded_bgs10_black !== null && p.graded_bgs10_black !== undefined)?.graded_bgs10_black ?? null;
 
     res.json({
       ...card,
       graded_psa10: bestPsa10,
       graded_psa9: bestPsa9,
+      graded_bgs10: bestBgs10,
+      graded_bgs10_black: bestBgsBlack,
       price_history: prices,
       latest_price: prices[prices.length - 1] || null,
       sources,

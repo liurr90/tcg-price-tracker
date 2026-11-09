@@ -232,72 +232,116 @@ export default function CardModal({ cardId, onClose, onPriceUpdated }) {
               </div>
             </div>
 
-            {/* PSA Graded Valuations */}
-            {card.graded_psa10 ? (
-              <div className="bg-gradient-to-r from-rose-950/40 via-slate-900 to-amber-950/30 border border-rose-900/50 rounded-3xl p-5 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-rose-900/40 pb-3">
+            {/* Graded Valuations (PSA 10, BGS 10, BGS Black Label, PSA 9) */}
+            {(card.graded_psa10 || card.graded_bgs10 || card.graded_bgs10_black || card.graded_psa9) ? (
+              <div className="bg-gradient-to-r from-rose-950/30 via-slate-900 to-amber-950/30 border border-slate-800 rounded-3xl p-5 space-y-4 shadow-xl">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
                   <div>
                     <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                      <Award className="w-4 h-4 text-rose-400" />
-                      <span>PSA Graded Market Valuations</span>
+                      <Award className="w-4 h-4 text-amber-400" />
+                      <span>Certified Graded Market Valuations</span>
                     </h3>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      Consensus market pricing aggregated from certified auction comps (eBay, PWCC, Goldin) via PriceCharting
+                      Consensus market pricing aggregated from PSA & Beckett auction comps (eBay, PWCC, Goldin) via PriceCharting
                     </p>
                   </div>
-                  <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-rose-950/80 border border-rose-700/60 text-rose-200 text-xs font-semibold">
-                    <Shield className="w-3.5 h-3.5 text-rose-400" />
-                    <span>PSA Consensus Values</span>
+                  <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 text-xs font-semibold">
+                    <Shield className="w-3.5 h-3.5 text-amber-400" />
+                    <span>PSA & Beckett Comps</span>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
                   {/* PSA 10 Card */}
-                  <div className="bg-slate-950/70 border border-rose-800/40 rounded-2xl p-4 flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded-md bg-rose-600 text-white font-black text-xs tracking-wider shadow-md">
-                          PSA 10
-                        </span>
-                        <span className="text-xs font-semibold text-rose-200 uppercase tracking-wide">Gem Mint</span>
-                      </div>
-                      <div className="text-2xl font-black text-white mt-2">
-                        ${Number(card.graded_psa10).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {card.graded_psa10 && (
+                    <div className="bg-slate-950/70 border border-rose-800/50 rounded-2xl p-4 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <span className="px-2 py-0.5 rounded-md bg-rose-600 text-white font-black text-xs tracking-wider shadow-md">
+                            PSA 10
+                          </span>
+                          <span className="text-[11px] font-semibold text-rose-300 uppercase tracking-wide">Gem Mint</span>
+                        </div>
+                        <div className="text-xl font-black text-white mt-2.5">
+                          ${Number(card.graded_psa10).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
                       </div>
                       {hasPrice && Number(card.graded_psa10) > Number(card.latest_price?.market_price) && (
-                        <div className="text-[11px] text-emerald-400 font-medium mt-0.5 flex items-center gap-1">
-                          <TrendingUp className="w-3 h-3" />
-                          <span>{(Number(card.graded_psa10) / Number(card.latest_price?.market_price)).toFixed(1)}x raw market multiplier</span>
+                        <div className="text-[10px] text-emerald-400 font-medium mt-2 flex items-center gap-1">
+                          <TrendingUp className="w-3 h-3 shrink-0" />
+                          <span>{(Number(card.graded_psa10) / Number(card.latest_price?.market_price)).toFixed(1)}x raw price</span>
                         </div>
                       )}
                     </div>
-                    <div className="w-12 h-12 rounded-2xl bg-rose-950/60 border border-rose-700/40 flex items-center justify-center">
-                      <Award className="w-6 h-6 text-rose-400" />
-                    </div>
-                  </div>
+                  )}
 
-                  {/* PSA 9 Card */}
-                  <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-slate-200 font-bold text-xs tracking-wider">
-                          PSA 9
-                        </span>
-                        <span className="text-xs font-semibold text-slate-300 uppercase tracking-wide">Mint</span>
+                  {/* BGS 10 Pristine Card */}
+                  {card.graded_bgs10 && (
+                    <div className="bg-slate-950/70 border border-amber-600/50 rounded-2xl p-4 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <span className="px-2 py-0.5 rounded-md bg-amber-500 text-slate-950 font-black text-xs tracking-wider shadow-md">
+                            BGS 10
+                          </span>
+                          <span className="text-[11px] font-semibold text-amber-300 uppercase tracking-wide">Pristine</span>
+                        </div>
+                        <div className="text-xl font-black text-amber-300 mt-2.5">
+                          ${Number(card.graded_bgs10).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
                       </div>
-                      <div className="text-2xl font-black text-slate-200 mt-2">
-                        {card.graded_psa9 ? `$${Number(card.graded_psa9).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '--'}
-                      </div>
-                      {card.graded_psa9 && hasPrice && (
-                        <div className="text-[11px] text-slate-400 font-medium mt-0.5">
-                          <span>{(Number(card.graded_psa9) / Number(card.latest_price?.market_price)).toFixed(1)}x raw market value</span>
+                      {hasPrice && Number(card.graded_bgs10) > Number(card.latest_price?.market_price) && (
+                        <div className="text-[10px] text-amber-400 font-medium mt-2 flex items-center gap-1">
+                          <TrendingUp className="w-3 h-3 shrink-0" />
+                          <span>{(Number(card.graded_bgs10) / Number(card.latest_price?.market_price)).toFixed(1)}x raw price</span>
                         </div>
                       )}
                     </div>
-                    <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center">
-                      <Shield className="w-6 h-6 text-slate-400" />
+                  )}
+
+                  {/* BGS 10 Black Label Card */}
+                  {card.graded_bgs10_black && (
+                    <div className="bg-gradient-to-b from-slate-900 to-black border border-amber-500/80 rounded-2xl p-4 flex flex-col justify-between shadow-lg shadow-amber-950/30">
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <span className="px-2 py-0.5 rounded-md bg-slate-950 border border-amber-400 text-amber-300 font-black text-xs tracking-wider shadow-md flex items-center gap-1">
+                            BGS 10 🖤
+                          </span>
+                          <span className="text-[11px] font-black text-amber-400 uppercase tracking-wide">Black Label</span>
+                        </div>
+                        <div className="text-xl font-black text-amber-300 mt-2.5">
+                          ${Number(card.graded_bgs10_black).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                      </div>
+                      {hasPrice && Number(card.graded_bgs10_black) > Number(card.latest_price?.market_price) && (
+                        <div className="text-[10px] text-amber-300 font-medium mt-2 flex items-center gap-1">
+                          <TrendingUp className="w-3 h-3 shrink-0" />
+                          <span>{(Number(card.graded_bgs10_black) / Number(card.latest_price?.market_price)).toFixed(1)}x raw price</span>
+                        </div>
+                      )}
                     </div>
-                  </div>
+                  )}
+
+                  {/* PSA 9 Mint Card */}
+                  {card.graded_psa9 && (
+                    <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <span className="px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-slate-200 font-bold text-xs tracking-wider">
+                            PSA 9
+                          </span>
+                          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Mint</span>
+                        </div>
+                        <div className="text-xl font-bold text-slate-200 mt-2.5">
+                          ${Number(card.graded_psa9).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                      </div>
+                      {hasPrice && (
+                        <div className="text-[10px] text-slate-400 font-medium mt-2">
+                          <span>{(Number(card.graded_psa9) / Number(card.latest_price?.market_price)).toFixed(1)}x raw price</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ) : null}
@@ -479,6 +523,16 @@ export default function CardModal({ cardId, onClose, onPriceUpdated }) {
                         stroke="#f43f5e"
                         strokeWidth={2}
                         dot={{ r: 4, fill: '#f43f5e' }}
+                        connectNulls={true}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="graded_bgs10"
+                        name="BGS 10 Pristine"
+                        stroke="#f59e0b"
+                        strokeWidth={2}
+                        strokeDasharray="2 2"
+                        dot={{ r: 4, fill: '#f59e0b' }}
                         connectNulls={true}
                       />
                       <Line

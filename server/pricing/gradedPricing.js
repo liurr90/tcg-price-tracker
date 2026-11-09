@@ -26,8 +26,15 @@ async function fetchPsaPrices(card) {
   const cardNum = card.card_number || '';
   const numClean = cleanNum(cardNum);
   const setName = (card.set_name || '').replace(/[:\[\]]/g, ' ').replace(/\s+/g, ' ').trim();
-  const isAlt = Boolean(card.is_alt_art) || cardNum.includes('_PR') || cardNum.includes('_p') || (card.name || '').includes('Alt');
-  const isSuperAlt = cardNum.includes('_PR2') || cardNum.includes('_p2') || (card.name || '').includes('Super Alt') || (card.rarity || '').includes('**');
+  const imgUrl = ((card.image_url || '') + ' ' + (card.local_image_path || '')).toLowerCase();
+
+  const isSuperAlt = cardNum.includes('_PR2') || cardNum.includes('_p2') || cardNum.includes('_r2') ||
+                     imgUrl.includes('_p2') || imgUrl.includes('_r2') || imgUrl.includes('_pr2') ||
+                     (card.name || '').includes('Super Alt') || (card.name || '').includes('Manga') ||
+                     (card.rarity || '').includes('**') || (card.rarity || '').includes('Special');
+
+  const isAlt = Boolean(card.is_alt_art) || cardNum.includes('_PR') || cardNum.includes('_p') || cardNum.includes('_r') ||
+                imgUrl.includes('_p1') || imgUrl.includes('_r1') || imgUrl.includes('_pr1') || (card.name || '').includes('Alt');
 
   // Build prioritized candidate search queries
   const queries = [];
@@ -40,11 +47,12 @@ async function fetchPsaPrices(card) {
     if (numClean && setName) queries.push(`${cardName} ${setName} ${numClean}`);
   } else if (card.game_id === 'onepiece') {
     if (isSuperAlt) {
+      queries.push(`${cardName} ${baseNum}`);
       queries.push(`${cardName} Manga ${baseNum}`);
       queries.push(`Manga ${baseNum}`);
     } else if (isAlt) {
-      queries.push(`${cardName} Alternate Art ${baseNum}`);
       queries.push(`${cardName} ${baseNum}`);
+      queries.push(`${cardName} Alternate Art ${baseNum}`);
     } else {
       queries.push(`${cardName} ${baseNum}`);
     }
@@ -52,11 +60,11 @@ async function fetchPsaPrices(card) {
   } else {
     // Fusion World / Gundam
     if (isSuperAlt) {
+      queries.push(`${cardName} ${baseNum}`);
       queries.push(`${cardName} Super Alternate ${baseNum}`);
-      queries.push(`${cardName} ${baseNum}`);
     } else if (isAlt) {
-      queries.push(`${cardName} Alternate Art ${baseNum}`);
       queries.push(`${cardName} ${baseNum}`);
+      queries.push(`${cardName} Alternate Art ${baseNum}`);
     } else {
       queries.push(`${cardName} ${baseNum}`);
     }
@@ -77,8 +85,12 @@ async function fetchPsaPrices(card) {
       const html = await res.text();
 
       // Find candidate rows
-      const rows = [...html.matchAll(/<tr id="product-(\d+)"[\s\S]*?<td class="title">[\s\S]*?<a href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)];
-      if (rows.length === 0) continue;
+      const allRows = [...html.matchAll(/<tr id="product-(\d+)"[\s\S]*?<td class="title">[\s\S]*?<a href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)];
+      if (allRows.length === 0) continue;
+
+      // Prefer English releases over Japanese unless no English version exists
+      const englishRows = allRows.filter(r => !/japanese/i.test(r[2]));
+      const rows = englishRows.length > 0 ? englishRows : allRows;
 
       let matchedRow = null;
 
@@ -92,9 +104,12 @@ async function fetchPsaPrices(card) {
         }
       } else {
         if (isSuperAlt) {
-          matchedRow = rows.find(r => /manga|super alternate/i.test(r[3])) || rows.find(r => r[3].includes(baseNum) || r[2].includes(baseNum.toLowerCase()));
+          matchedRow = rows.find(r => /manga|super alternate|special|\bsp\b/i.test(r[3]) && (r[3].includes(baseNum) || r[2].includes(baseNum.toLowerCase())))
+                    || rows.find(r => /manga|super alternate|special|\bsp\b/i.test(r[3]))
+                    || rows.find(r => r[3].includes(baseNum) || r[2].includes(baseNum.toLowerCase()));
         } else if (isAlt) {
-          matchedRow = rows.find(r => /alternate art|parallel/i.test(r[3]) && !/manga|super/i.test(r[3])) || rows.find(r => r[3].includes(baseNum) || r[2].includes(baseNum.toLowerCase()));
+          matchedRow = rows.find(r => /alternate art|parallel/i.test(r[3]) && !/manga|super/i.test(r[3]))
+                    || rows.find(r => r[3].includes(baseNum) || r[2].includes(baseNum.toLowerCase()));
         } else {
           matchedRow = rows.find(r => (r[3].includes(baseNum) || r[2].includes(baseNum.toLowerCase())) && !/alternate art|parallel|manga|super/i.test(r[3]))
                     || rows.find(r => r[3].includes(baseNum) || r[2].includes(baseNum.toLowerCase()))
@@ -121,16 +136,26 @@ async function fetchPsaPrices(card) {
         return m ? parseFloat(m[1].replace(/,/g, '')) : null;
       };
 
-      const raw = parsePrice('used_price');
-      const grade9 = parsePrice('graded_price');
-      const psa10 = parsePrice('manual_only_price');
+      const parseNamedGrade = (name) => {
+        const re = new RegExp('<tr>\\s*<td>' + name + '<\\/td>\\s*<td class="price js-price">\\s*\\$([0-9,.]+)\\s*<\\/td>', 'i');
+        const m = prodHtml.match(re);
+        return m ? parseFloat(m[1].replace(/,/g, '')) : null;
+      };
 
-      if (psa10 || grade9) {
+      const raw = parsePrice('used_price');
+      const grade9 = parsePrice('graded_price') || parseNamedGrade('Grade 9');
+      const psa10 = parsePrice('manual_only_price') || parseNamedGrade('PSA 10');
+      const bgs10 = parseNamedGrade('BGS 10');
+      const bgs10Black = parseNamedGrade('BGS 10 Black');
+
+      if (psa10 || grade9 || bgs10 || bgs10Black) {
         return {
           card_id: card.id,
           name: card.name,
           psa10,
           psa9: grade9,
+          bgs10,
+          bgs10_black: bgs10Black,
           raw,
           url: productPath,
           matchedTitle: matchedRow[3].replace(/\s+/g, ' ').trim()
@@ -145,7 +170,7 @@ async function fetchPsaPrices(card) {
 }
 
 /**
- * Updates a card's latest price record with PSA 10 & PSA 9 values
+ * Updates a card's latest price record with PSA 10, PSA 9, and BGS 10 values
  */
 async function updateCardPsaPrices(cardId) {
   const card = db.prepare(`
@@ -158,7 +183,7 @@ async function updateCardPsaPrices(cardId) {
   if (!card) return null;
 
   const result = await fetchPsaPrices(card);
-  if (!result || (!result.psa10 && !result.psa9)) return null;
+  if (!result || (!result.psa10 && !result.psa9 && !result.bgs10 && !result.bgs10_black)) return null;
 
   // Find latest price record
   const latestPrice = db.prepare(`
@@ -172,14 +197,17 @@ async function updateCardPsaPrices(cardId) {
   if (latestPrice) {
     db.prepare(`
       UPDATE price_history 
-      SET graded_psa10 = ?, graded_psa9 = ? 
+      SET graded_psa10 = COALESCE(?, graded_psa10),
+          graded_psa9 = COALESCE(?, graded_psa9),
+          graded_bgs10 = COALESCE(?, graded_bgs10),
+          graded_bgs10_black = COALESCE(?, graded_bgs10_black)
       WHERE id = ?
-    `).run(result.psa10, result.psa9, latestPrice.id);
+    `).run(result.psa10, result.psa9, result.bgs10, result.bgs10_black, latestPrice.id);
   } else {
     const todayStr = new Date().toISOString().split('T')[0];
     db.prepare(`
-      INSERT INTO price_history (card_id, source, market_price, low_price, high_price, graded_psa10, graded_psa9, currency, recorded_at, source_url)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO price_history (card_id, source, market_price, low_price, high_price, graded_psa10, graded_psa9, graded_bgs10, graded_bgs10_black, currency, recorded_at, source_url)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       cardId,
       'pricecharting',
@@ -188,6 +216,8 @@ async function updateCardPsaPrices(cardId) {
       result.raw ? parseFloat((result.raw * 1.25).toFixed(2)) : null,
       result.psa10,
       result.psa9,
+      result.bgs10,
+      result.bgs10_black,
       'USD',
       todayStr,
       result.url

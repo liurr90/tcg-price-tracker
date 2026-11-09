@@ -23,6 +23,13 @@ async function queryLivePrice(cardId) {
   const todayStr = new Date().toISOString().split('T')[0];
   const tcgSetName = getTcgSetName(card.game_id, card.set_id, card.set_name);
 
+  // Check existing DB price if available
+  const existing = db.prepare(`
+    SELECT * FROM price_history 
+    WHERE card_id = ? AND market_price IS NOT NULL
+    ORDER BY recorded_at DESC, id DESC LIMIT 1
+  `).get(cardId);
+
   let marketPrice = null;
   let lowestPrice = null;
   let tcgProductUrl = null;
@@ -33,8 +40,82 @@ async function queryLivePrice(cardId) {
   const cardNumClean = cleanNum(card.card_number);
   const cardNorm = norm(card.name);
 
-  // Strategy 1: Targeted set-scoped search on TCGPlayer
-  if (tcgSetName) {
+  const imgUrl = ((card.image_url || '') + ' ' + (card.local_image_path || '')).toLowerCase();
+  const isSuperAlt = card.card_number.includes('_PR2') || card.card_number.includes('_p2') || card.card_number.includes('_r2') ||
+                     imgUrl.includes('_p2') || imgUrl.includes('_r2') || imgUrl.includes('_pr2') ||
+                     (card.name || '').includes('Super Alt') || (card.name || '').includes('Manga') ||
+                     (card.rarity || '').includes('Special') || (card.rarity || '').includes('**');
+  const isAlt = Boolean(card.is_alt_art) || card.card_number.includes('_PR') || card.card_number.includes('_p') || card.card_number.includes('_r') ||
+                imgUrl.includes('_p1') || imgUrl.includes('_r1') || (card.name || '').includes('Alt');
+
+  function pickBestMatch(results) {
+    if (!results || results.length === 0) return null;
+    if (results.length === 1) return results[0];
+
+    let match = null;
+    if (isSuperAlt) {
+      match = results.find(it => /manga|super alternate|special|\(sp\)/i.test(it.productName || it.cleanName));
+    } else if (isAlt) {
+      match = results.find(it => /alternate art|parallel/i.test(it.productName || it.cleanName) && !/manga|super alternate/i.test(it.productName || it.cleanName));
+    } else {
+      match = results.find(it => !/manga|super alternate|special|\(sp\)|alternate art|parallel/i.test(it.productName || it.cleanName));
+    }
+
+    if (!match && existing && existing.market_price > 0) {
+      match = results.slice().sort((a, b) => {
+        const diffA = Math.abs(parseFloat(a.marketPrice) - existing.market_price);
+        const diffB = Math.abs(parseFloat(b.marketPrice) - existing.market_price);
+        return diffA - diffB;
+      })[0];
+    }
+
+    return match || results[0];
+  }
+
+  // Strategy 1: Exact Card Number search on TCGPlayer (best for One Piece, Fusion World, Gundam variants)
+  if (cardNumClean && cardNumClean.length >= 2) {
+    try {
+      const numRes = await fetch(TCGPLAYER_SEARCH_API, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+        },
+        body: JSON.stringify({
+          algorithm: 'sales_synonym_v2',
+          from: 0,
+          size: 25,
+          filters: { term: { number: [cardNumClean] } }
+        })
+      });
+
+      if (numRes.ok) {
+        const numData = await numRes.json();
+        const results = (numData.results?.[0]?.results || []).filter(it => it.marketPrice !== undefined && it.marketPrice !== null);
+        
+        // Filter by card name
+        const relevantResults = results.filter(it => {
+          const itProd = norm(it.cleanName || it.productName);
+          return itProd.includes(cardNorm) || cardNorm.includes(itProd.split(' ')[0]);
+        });
+
+        const match = pickBestMatch(relevantResults.length > 0 ? relevantResults : results);
+        if (match && match.marketPrice !== undefined && match.marketPrice !== null) {
+          marketPrice = parseFloat(match.marketPrice);
+          lowestPrice = match.lowestPrice ? parseFloat(match.lowestPrice) : parseFloat((marketPrice * 0.85).toFixed(2));
+          matchedProductName = match.productName || card.name;
+          if (match.productId) {
+            tcgProductUrl = `https://www.tcgplayer.com/product/${match.productId}`;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn(`[Live Query] Number-scoped search for "${cardNumClean}" error:`, err.message);
+    }
+  }
+
+  // Strategy 2: Targeted set-scoped search on TCGPlayer
+  if (!marketPrice && tcgSetName) {
     try {
       const setRes = await fetch(`${TCGPLAYER_SEARCH_API}?q=${encodeURIComponent(card.name)}`, {
         method: 'POST',
@@ -45,7 +126,7 @@ async function queryLivePrice(cardId) {
         body: JSON.stringify({
           algorithm: 'sales_synonym_v2',
           from: 0,
-          size: 15,
+          size: 25,
           filters: { term: { setName: [tcgSetName] } }
         })
       });
@@ -54,16 +135,19 @@ async function queryLivePrice(cardId) {
         const setData = await setRes.json();
         const setResults = setData.results?.[0]?.results || [];
         
-        let match = setResults.find(it => {
+        const numMatches = setResults.filter(it => {
           const itNumClean = cleanNum(it.customAttributes?.number);
           return itNumClean && itNumClean === cardNumClean && it.marketPrice !== undefined && it.marketPrice !== null;
         });
 
+        let match = pickBestMatch(numMatches);
+
         if (!match) {
-          match = setResults.find(it => {
+          const nameMatches = setResults.filter(it => {
             const itProd = norm(it.cleanName || it.productName);
             return (itProd === cardNorm || itProd.startsWith(cardNorm)) && it.marketPrice !== undefined && it.marketPrice !== null;
           });
+          match = pickBestMatch(nameMatches);
         }
 
         if (match && match.marketPrice !== undefined && match.marketPrice !== null) {
@@ -80,13 +164,17 @@ async function queryLivePrice(cardId) {
     }
   }
 
-  // Strategy 2: Fallback query search if set-scoped search did not locate price
+  // Strategy 3: Fallback query search if number or set search did not locate price
   if (!marketPrice) {
     const cleanSetName = (card.set_name || '').replace(/[:\[\]]/g, ' ').replace(/\s+/g, ' ').trim();
+    const productLine = card.game_id === 'pokemon' ? 'Pokemon' : card.game_id === 'onepiece' ? 'One Piece Card Game' : card.game_id === 'fusionworld' ? 'Dragon Ball Super: Fusion World' : null;
+    const termFilter = productLine ? { productLineName: [productLine] } : {};
+
     const queriesToTry = [
+      `${card.card_number} ${card.name}`.trim(),
+      `${card.card_number}`.trim(),
       `${card.name} ${tcgSetName || ''}`.trim(),
       `${card.name} ${cleanSetName}`.trim(),
-      `${card.card_number} ${card.name}`.trim(),
       `${card.name}`
     ];
 
@@ -102,8 +190,8 @@ async function queryLivePrice(cardId) {
           body: JSON.stringify({
             algorithm: 'sales_synonym_v2',
             from: 0,
-            size: 6,
-            filters: { term: {} }
+            size: 25,
+            filters: { term: termFilter }
           })
         });
 
@@ -113,21 +201,20 @@ async function queryLivePrice(cardId) {
         const results = data.results?.[0]?.results || [];
         if (results.length === 0) continue;
 
-        const setNorm = norm(card.set_name);
-
-        let match = results.find(item => {
-          const itemSet = norm(item.setName);
-          const itemProd = norm(item.productName || item.cleanName);
-          const setMatches = itemSet.includes(setNorm) || setNorm.includes(itemSet) || (item.setName && item.setName.includes('30th Celebration'));
-          const nameMatches = itemProd.includes(cardNorm) || cardNorm.includes(itemProd);
-          return setMatches && nameMatches && item.marketPrice !== undefined && item.marketPrice !== null;
+        // First try matching by card number
+        const numMatches = results.filter(item => {
+          const itNumClean = cleanNum(item.customAttributes?.number);
+          return itNumClean && itNumClean === cardNumClean && item.marketPrice !== undefined && item.marketPrice !== null;
         });
 
+        let match = pickBestMatch(numMatches);
+
         if (!match) {
-          match = results.find(item => {
-            const itNumClean = cleanNum(item.customAttributes?.number);
-            return itNumClean && itNumClean === cardNumClean && item.marketPrice !== undefined && item.marketPrice !== null;
+          const nameMatches = results.filter(item => {
+            const itemProd = norm(item.productName || item.cleanName);
+            return (itemProd.includes(cardNorm) || cardNorm.includes(itemProd)) && item.marketPrice !== undefined && item.marketPrice !== null;
           });
+          match = pickBestMatch(nameMatches);
         }
 
         if (match && match.marketPrice !== undefined && match.marketPrice !== null) {
@@ -162,21 +249,25 @@ async function queryLivePrice(cardId) {
   }
 
   const insertPrice = db.prepare(`
-    INSERT INTO price_history (card_id, source, market_price, low_price, high_price, graded_psa10, graded_psa9, currency, source_url, recorded_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO price_history (card_id, source, market_price, low_price, high_price, graded_psa10, graded_psa9, graded_bgs10, graded_bgs10_black, currency, source_url, recorded_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   if (marketPrice !== null && marketPrice > 0) {
     const highPrice = parseFloat((marketPrice * 1.25).toFixed(2));
 
-    // Fetch live PSA 10 / PSA 9 valuation from PriceCharting
+    // Fetch live PSA 10 / PSA 9 / BGS 10 valuation from PriceCharting
     let psa10 = null;
     let psa9 = null;
+    let bgs10 = null;
+    let bgs10Black = null;
     try {
       const psaRes = await fetchPsaPrices(card);
       if (psaRes) {
         psa10 = psaRes.psa10 || null;
         psa9 = psaRes.psa9 || null;
+        bgs10 = psaRes.bgs10 || null;
+        bgs10Black = psaRes.bgs10_black || null;
       }
     } catch {
       // Non-fatal if PSA query fails
@@ -191,6 +282,8 @@ async function queryLivePrice(cardId) {
       highPrice,
       psa10,
       psa9,
+      bgs10,
+      bgs10Black,
       'USD',
       tcgProductUrl,
       todayStr
@@ -209,8 +302,10 @@ async function queryLivePrice(cardId) {
       cmMarket,
       cmLow,
       cmHigh,
-      null,
-      null,
+      psa10,
+      psa9,
+      bgs10,
+      bgs10Black,
       'EUR',
       cmUrl,
       todayStr
@@ -230,8 +325,10 @@ async function queryLivePrice(cardId) {
       ebayMarket,
       ebayLow,
       ebayHigh,
-      null,
-      null,
+      psa10,
+      psa9,
+      bgs10,
+      bgs10Black,
       'USD',
       ebayUrl,
       todayStr

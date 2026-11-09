@@ -294,7 +294,7 @@ export default function FilterBar({
             >
               <option value="price_desc">Highest Price</option>
               <option value="price_asc">Lowest Price</option>
-              <option value="psa10_desc">Top Graded PSA 10</option>
+              <option value="psa10_desc">Top Graded (PSA / BGS 10)</option>
               <option value="name_asc">Card Name (A-Z)</option>
               <option value="number_asc">Card Number</option>
             </select>
