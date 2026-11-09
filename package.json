@@ -1,0 +1,44 @@
+{
+  "name": "tcg-price-tracker",
+  "version": "1.0.0",
+  "main": "server/server.js",
+  "scripts": {
+    "dev": "concurrently \"npm run start:server\" \"npm run dev:client\"",
+    "start:server": "node server/server.js",
+    "dev:client": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "ingest": "node scripts/ingest.js",
+    "sync:prices": "node -e \"require('./server/pricing/priceUpdater').updatePrices();\""
+  },
+  "keywords": [
+    "tcg",
+    "price-tracker",
+    "pokemon",
+    "one-piece",
+    "dragon-ball-fusion-world",
+    "gundam"
+  ],
+  "author": "",
+  "license": "ISC",
+  "description": "Multi-game TCG card and pricing tracker with local storage, scheduled 2x/day updates, and live query fallbacks",
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "concurrently": "^10.0.7",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.9",
+    "express": "^5.3.0",
+    "node-cron": "^4.6.0",
+    "sharp": "^0.35.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.5",
+    "@vitejs/plugin-react": "^6.2.1",
+    "lucide-react": "^1.70.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "recharts": "^3.10.1",
+    "tailwindcss": "^4.3.5",
+    "vite": "^8.3.6"
+  }
+}

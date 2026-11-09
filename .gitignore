@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Production build artifacts
+dist/
+
+# Offline card images & temporary image cache (downloaded on-demand via bulkDownloader/API)
+data/images/
+data/image_cache/
+
+# SQLite temporary locks & write-ahead log files (only track canonical tcg_cards.db)
+data/*.db-wal
+data/*.db-shm
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# Environment & OS files
+.env
+.env.local
+.DS_Store
+Thumbs.db
