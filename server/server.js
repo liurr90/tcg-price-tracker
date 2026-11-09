@@ -13,6 +13,7 @@ const { ingestPokemon } = require('./ingestors/pokemon');
 const { ingestOnePiece } = require('./ingestors/onepiece');
 const { ingestFusionWorld } = require('./ingestors/fusionworld');
 const { ingestGundam } = require('./ingestors/gundam');
+const { ingestRiftbound } = require('./ingestors/riftbound');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -166,6 +167,17 @@ app.get('/api/sets', (req, res) => {
         END ASC,
         release_date DESC,
         code DESC,
+        name ASC`;
+    } else if (game === 'riftbound') {
+      query += ` ORDER BY 
+        CASE 
+          WHEN name = 'Origins' THEN 1
+          WHEN name = 'Radiance' THEN 2
+          WHEN name = 'Unleashed' THEN 3
+          WHEN name = 'Spiritforged' THEN 4
+          WHEN name = 'Vendetta' THEN 5
+          ELSE 6
+        END ASC,
         name ASC`;
     } else {
       query += ' ORDER BY is_recent DESC, release_date DESC, code DESC, name ASC';
@@ -448,6 +460,9 @@ app.post('/api/sync/metadata', async (req, res) => {
     }
     if (game === 'all' || game === 'gundam') {
       results.gundam = await ingestGundam();
+    }
+    if (game === 'all' || game === 'riftbound') {
+      results.riftbound = await ingestRiftbound();
     }
 
     // Refresh pricing for any new cards

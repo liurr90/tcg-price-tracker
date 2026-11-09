@@ -4,6 +4,7 @@ const {
   syncRealTcgPlayerMarket
 } = require('./realPrices');
 const { syncPrioritySets } = require('./syncAllSets');
+const { syncRiftboundGradedPricing } = require('../ingestors/riftbound');
 
 /**
  * Fetch and update actual market prices across TCGPlayer and marketplace APIs.
@@ -15,6 +16,9 @@ async function updatePrices(gameId = null) {
   try {
     if (!gameId || gameId === 'onepiece') {
       results.onepiece = await syncRealOnePiecePrices();
+    }
+    if (!gameId || gameId === 'riftbound') {
+      results.riftbound = await syncRiftboundGradedPricing();
     }
     // High-precision set-by-set synchronization across Pokemon, Gundam, and Fusion World
     const setSyncRes = await syncPrioritySets();

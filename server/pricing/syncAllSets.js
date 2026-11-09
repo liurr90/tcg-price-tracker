@@ -93,7 +93,16 @@ const PRIORITY_SETS = [
   'fusionworld-FS11',
   'fusionworld-FS12',
   'fusionworld-FS13',
-  'fusionworld-FS14'
+  'fusionworld-FS14',
+
+  // Riftbound TCG
+  'riftbound-origins',
+  'riftbound-radiance',
+  'riftbound-unleashed',
+  'riftbound-spiritforged',
+  'riftbound-vendetta',
+  'riftbound-riftbound-organized-play-promotional-cards',
+  'riftbound-t1-2025-worlds-champion-bundles'
 ];
 
 /**

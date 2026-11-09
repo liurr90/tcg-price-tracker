@@ -10,9 +10,17 @@ function cleanCardName(name) {
   return name
     .replace(/\s*\(Super Alt-Art\)/gi, '')
     .replace(/\s*\(Alt-Art\)/gi, '')
+    .replace(/\s*\(Alternate Art\)/gi, '')
+    .replace(/\s*\(Signature\)/gi, '')
+    .replace(/\s*\(Overnumbered\)/gi, '')
+    .replace(/\s*\(Ultimate\)/gi, '')
+    .replace(/\s*\(Metal\)/gi, '')
+    .replace(/\s*\(Prize Wall\)/gi, '')
+    .replace(/\s*\(Best Of\)/gi, '')
     .replace(/\s*\(Manga\)/gi, '')
     .replace(/\s*\(Parallel\)/gi, '')
     .replace(/\s*\(Special Rare\)/gi, '')
+    .replace(/,/g, '')
     .trim();
 }
 
@@ -56,6 +64,11 @@ async function fetchPsaPrices(card) {
     } else {
       queries.push(`${cardName} ${baseNum}`);
     }
+    queries.push(baseNum);
+  } else if (card.game_id === 'riftbound') {
+    if (numClean) queries.push(`${cardName} ${numClean}`);
+    queries.push(cardName);
+    if (setName) queries.push(`${cardName} ${setName}`);
     queries.push(baseNum);
   } else {
     // Fusion World / Gundam

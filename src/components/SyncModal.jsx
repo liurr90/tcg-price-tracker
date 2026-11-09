@@ -359,6 +359,7 @@ export default function SyncModal({ isOpen, onClose, onPriceSyncTriggered }) {
                       className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
                     >
                       <option value="all">All Games (All Sets)</option>
+                      <option value="riftbound">Riftbound TCG (All 14 Sets)</option>
                       <option value="onepiece">One Piece TCG (All 61 Sets)</option>
                       <option value="gundam">Gundam Card Game</option>
                       <option value="fusionworld">Dragon Ball Super: Fusion World</option>

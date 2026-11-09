@@ -103,6 +103,7 @@ function initSchema() {
   insertGame.run('onepiece', 'One Piece Card Game', 'OPTCG', 'Bandai', 'rose');
   insertGame.run('fusionworld', 'Dragon Ball Super: Fusion World', 'DBSFW', 'Bandai', 'orange');
   insertGame.run('gundam', 'Gundam Card Game', 'GCG', 'Bandai', 'cyan');
+  insertGame.run('riftbound', 'Riftbound TCG', 'RIFTBOUND', 'Riot Games / UVS Games', 'violet');
 }
 
 initSchema();

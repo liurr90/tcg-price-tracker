@@ -179,7 +179,7 @@ async function queryLivePrice(cardId) {
   // Strategy 3: Fallback query search if number or set search did not locate price
   if (!marketPrice) {
     const cleanSetName = (card.set_name || '').replace(/[:\[\]]/g, ' ').replace(/\s+/g, ' ').trim();
-    const productLine = card.game_id === 'pokemon' ? 'Pokemon' : card.game_id === 'onepiece' ? 'One Piece Card Game' : card.game_id === 'fusionworld' ? 'Dragon Ball Super: Fusion World' : null;
+    const productLine = card.game_id === 'pokemon' ? 'Pokemon' : card.game_id === 'onepiece' ? 'One Piece Card Game' : card.game_id === 'fusionworld' ? 'Dragon Ball Super: Fusion World' : card.game_id === 'riftbound' ? 'Riftbound: League of Legends Trading Card Game' : null;
     const termFilter = productLine ? { productLineName: [productLine] } : {};
 
     const queriesToTry = [
@@ -283,6 +283,22 @@ async function queryLivePrice(cardId) {
       }
     } catch {
       // Non-fatal if PSA query fails
+    }
+
+    // Preserve existing graded pricing if live lookup didn't return graded comps
+    if (!psa10 && !bgs10) {
+      const prevGraded = db.prepare(`
+        SELECT graded_psa10, graded_psa9, graded_bgs10, graded_bgs10_black
+        FROM price_history
+        WHERE card_id = ? AND (graded_psa10 IS NOT NULL OR graded_bgs10 IS NOT NULL)
+        ORDER BY id DESC LIMIT 1
+      `).get(cardId);
+      if (prevGraded) {
+        psa10 = prevGraded.graded_psa10;
+        psa9 = prevGraded.graded_psa9;
+        bgs10 = prevGraded.graded_bgs10;
+        bgs10Black = prevGraded.graded_bgs10_black;
+      }
     }
 
     // 1. Record TCGPlayer Live

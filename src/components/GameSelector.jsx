@@ -25,6 +25,12 @@ const GAME_THEMES = {
     bgActive: 'bg-cyan-500/10 text-cyan-300 border-cyan-500',
     dot: 'bg-cyan-400',
     badge: 'bg-cyan-950/60 text-cyan-300 border-cyan-700/50'
+  },
+  riftbound: {
+    border: 'border-violet-500/50',
+    bgActive: 'bg-violet-500/10 text-violet-300 border-violet-500',
+    dot: 'bg-violet-400',
+    badge: 'bg-violet-950/60 text-violet-300 border-violet-700/50'
   }
 };
 

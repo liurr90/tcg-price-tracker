@@ -267,6 +267,9 @@ function getTcgSetName(gameId, setId, setName) {
     if (FUSION_WORLD_NAME_OVERRIDES[setId]) return FUSION_WORLD_NAME_OVERRIDES[setId];
     return setName;
   }
+  if (gameId === 'riftbound') {
+    return setName;
+  }
   if (gameId === 'onepiece') {
     if (ONE_PIECE_NAME_OVERRIDES[setId]) return ONE_PIECE_NAME_OVERRIDES[setId];
     return setName;

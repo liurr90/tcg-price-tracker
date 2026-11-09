@@ -6,7 +6,8 @@ const GAME_BADGES = {
   pokemon: 'bg-amber-950/80 text-amber-300 border-amber-800/60',
   onepiece: 'bg-rose-950/80 text-rose-300 border-rose-800/60',
   fusionworld: 'bg-orange-950/80 text-orange-300 border-orange-800/60',
-  gundam: 'bg-cyan-950/80 text-cyan-300 border-cyan-800/60'
+  gundam: 'bg-cyan-950/80 text-cyan-300 border-cyan-800/60',
+  riftbound: 'bg-violet-950/80 text-violet-300 border-violet-800/60'
 };
 
 export default function CardCard({ card, onSelect, onLiveCheck }) {

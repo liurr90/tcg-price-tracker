@@ -40,7 +40,7 @@ async function runCompression() {
   compressionProgress.processed = 0;
 
   // Find all image files across all games
-  const games = ['pokemon', 'onepiece', 'gundam', 'fusionworld'];
+  const games = ['pokemon', 'onepiece', 'gundam', 'fusionworld', 'riftbound'];
   const queue = [];
 
   for (const game of games) {

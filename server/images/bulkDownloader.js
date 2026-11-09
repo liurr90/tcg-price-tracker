@@ -6,7 +6,7 @@ const db = require('../db');
 const IMAGES_DIR = path.join(__dirname, '../../data/images');
 
 // Ensure game directories exist
-['onepiece', 'gundam', 'fusionworld', 'pokemon'].forEach((g) => {
+['onepiece', 'gundam', 'fusionworld', 'pokemon', 'riftbound'].forEach((g) => {
   const dir = path.join(IMAGES_DIR, g);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
