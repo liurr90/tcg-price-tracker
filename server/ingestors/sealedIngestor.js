@@ -7,17 +7,30 @@ const SEALED_KEYWORDS = /\b(booster box|booster display|booster pack|booster bun
 function isSealedName(name) {
   if (!name) return false;
   if (/^sleeves?\b|deck protector|playmat|binder|portfolio|card divider/i.test(name)) return false;
+  if (/^don!!\b|don!!\s+card/i.test(name)) return false;
   return SEALED_KEYWORDS.test(name);
 }
 
 function isCaseProduct(name, cardType = '') {
   if (!name) return false;
   if (/^sleeves?\b|deck protector|playmat|binder|portfolio/i.test(name)) return false;
-  return /\bcase\b/i.test(name) || /case/i.test(cardType);
+  
+  // Explicit "case"
+  if (/\bcase\b/i.test(name) || /case/i.test(cardType)) return true;
+
+  // Wholesale bulk displays that function as cases of consumer units (bundles, double packs, tins)
+  if (/bundle\s+display\b/i.test(name)) return true;
+  if (/double\s+pack.*display\b/i.test(name)) return true;
+  if (/tin\s+pack.*display\b/i.test(name)) return true;
+
+  return false;
 }
 
 function determineCardType(name) {
   if (/case\b/i.test(name)) return 'Booster Box Case';
+  if (/bundle\s+display\b/i.test(name)) return 'Booster Box Case';
+  if (/double\s+pack.*display\b/i.test(name)) return 'Booster Box Case';
+  if (/tin\s+pack.*display\b/i.test(name)) return 'Booster Box Case';
   if (/display\b/i.test(name)) return 'Booster Display';
   if (/booster box/i.test(name)) return 'Booster Box';
   if (/elite trainer box|\betb\b/i.test(name)) return 'Elite Trainer Box';
@@ -78,38 +91,83 @@ function classifyExistingCards() {
  */
 function linkBoxesAndCases() {
   console.log('[Sealed Ingestor] Linking Boxes and Cases...');
-  const cases = db.prepare('SELECT id, game_id, name, set_id FROM cards WHERE is_sealed = 1 AND is_case = 1').all();
-  const boxes = db.prepare('SELECT id, game_id, name, set_id FROM cards WHERE is_sealed = 1 AND is_case = 0').all();
+  // Clear any existing stale links
+  db.prepare('UPDATE cards SET case_product_id = NULL WHERE case_product_id IS NOT NULL').run();
+
+  const cases = db.prepare(`
+    SELECT c.id, c.game_id, c.name, c.set_id, p.market_price
+    FROM cards c
+    LEFT JOIN price_history p ON p.id = (
+      SELECT id FROM price_history WHERE card_id = c.id ORDER BY recorded_at DESC, id DESC LIMIT 1
+    )
+    WHERE c.is_sealed = 1 AND c.is_case = 1
+    ORDER BY (p.market_price IS NOT NULL AND p.market_price > 0) DESC, c.id ASC
+  `).all();
+
+  const boxes = db.prepare(`
+    SELECT c.id, c.game_id, c.name, c.set_id, p.market_price
+    FROM cards c
+    LEFT JOIN price_history p ON p.id = (
+      SELECT id FROM price_history WHERE card_id = c.id ORDER BY recorded_at DESC, id DESC LIMIT 1
+    )
+    WHERE c.is_sealed = 1 AND c.is_case = 0
+    ORDER BY (p.market_price IS NOT NULL AND p.market_price > 0) DESC, c.id ASC
+  `).all();
 
   const norm = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   const updatePairStmt = db.prepare('UPDATE cards SET case_product_id = ? WHERE id = ?');
+  const boxLinkedMap = new Map(); // boxId -> case object
 
   let paired = 0;
   const tx = db.transaction(() => {
     for (const kase of cases) {
-      const stripped = kase.name.replace(/\s*case\b/gi, '').trim();
-      const strippedNorm = norm(stripped);
+      // Possible target names to match against individual boxes:
+      // 1. Strip "case"
+      // 2. Strip "display case" or "display" (for Bundle Displays, Double Pack Displays, etc.)
+      const strippedCase = kase.name.replace(/\s*case\b/gi, '').trim();
+      const strippedDisplay = kase.name.replace(/\s*(display\s*case|display|case)\b/gi, '').trim();
+      const candidateNorms = [norm(strippedCase), norm(strippedDisplay)].filter((v, i, a) => v && a.indexOf(v) === i);
+
       const gameBoxes = boxes.filter(b => b.game_id === kase.game_id);
 
+      let match = null;
+
       // 1. Exact match on stripped name
-      let match = gameBoxes.find(b => norm(b.name) === strippedNorm);
+      for (const cNorm of candidateNorms) {
+        match = gameBoxes.find(b => norm(b.name) === cNorm);
+        if (match) break;
+      }
 
       // 2. Exact match within same set
       if (!match) {
-        match = gameBoxes.find(b => b.set_id === kase.set_id && (norm(b.name).includes(strippedNorm) || strippedNorm.includes(norm(b.name))));
+        for (const cNorm of candidateNorms) {
+          match = gameBoxes.find(b => b.set_id === kase.set_id && (norm(b.name).includes(cNorm) || cNorm.includes(norm(b.name))));
+          if (match) break;
+        }
       }
 
       // 3. Fallback: startsWith / endsWith match
       if (!match) {
-        match = gameBoxes.find(b => {
-          const bNorm = norm(b.name);
-          return (bNorm.length >= 8 && strippedNorm.length >= 8) && (bNorm.startsWith(strippedNorm) || strippedNorm.startsWith(bNorm));
-        });
+        for (const cNorm of candidateNorms) {
+          match = gameBoxes.find(b => {
+            const bNorm = norm(b.name);
+            return (bNorm.length >= 8 && cNorm.length >= 8) && (bNorm.startsWith(cNorm) || cNorm.startsWith(bNorm));
+          });
+          if (match) break;
+        }
       }
 
       if (match) {
-        updatePairStmt.run(kase.id, match.id);
+        // Case points to the box
         updatePairStmt.run(match.id, kase.id);
+
+        // Box points to the case (prefer case with market_price if already linked)
+        const currentLink = boxLinkedMap.get(match.id);
+        const shouldUpdateBox = !currentLink || (!currentLink.market_price && kase.market_price);
+        if (shouldUpdateBox) {
+          updatePairStmt.run(kase.id, match.id);
+          boxLinkedMap.set(match.id, kase);
+        }
         paired++;
       }
     }
