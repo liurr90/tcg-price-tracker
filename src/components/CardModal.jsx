@@ -527,6 +527,11 @@ export default function CardModal({ cardId, onClose, onNavigate, onPriceUpdated 
                               <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border ${meta.badgeClass || 'bg-slate-800 text-slate-300 border-slate-700'}`}>
                                 {meta.region || s.currency}
                               </span>
+                              {meta.code === 'tcgplayer' && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-md font-semibold bg-cyan-950/60 text-cyan-400 border border-cyan-800/50" title="Foreign language notes (e.g. JAPANESE, CHINESE) and loose pack lots are excluded to find the true English floor">
+                                  English Floor
+                                </span>
+                              )}
                               {isCheapest && (
                                 <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-950 text-emerald-300 border border-emerald-700">
                                   Lowest Market

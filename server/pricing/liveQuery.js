@@ -1,6 +1,7 @@
 const db = require('../db');
 const { getTcgSetName } = require('./setMapping');
 const { fetchPsaPrices } = require('./gradedPricing');
+const { fetchVerifiedLowestListing } = require('./listingFilter');
 
 const TCGPLAYER_SEARCH_API = 'https://mp-search-api.tcgplayer.com/v1/search/request';
 
@@ -34,6 +35,7 @@ async function queryLivePrice(cardId) {
   let lowestPrice = null;
   let tcgProductUrl = null;
   let matchedProductName = card.name;
+  let matchedProductId = null;
 
   const norm = str => (str || '').toLowerCase().replace(/[-:()]/g, ' ').replace(/\s+/g, ' ').trim();
   const cleanNum = num => String(num || '').replace(/['"]/g, '').split('/')[0].replace(/^0+/, '').trim().toUpperCase();
@@ -117,6 +119,7 @@ async function queryLivePrice(cardId) {
           lowestPrice = match.lowestPrice ? parseFloat(match.lowestPrice) : parseFloat((marketPrice * 0.85).toFixed(2));
           matchedProductName = match.productName || card.name;
           if (match.productId) {
+            matchedProductId = String(match.productId);
             tcgProductUrl = `https://www.tcgplayer.com/product/${match.productId}`;
           }
         }
@@ -167,6 +170,7 @@ async function queryLivePrice(cardId) {
           lowestPrice = match.lowestPrice ? parseFloat(match.lowestPrice) : parseFloat((marketPrice * 0.85).toFixed(2));
           matchedProductName = match.productName || card.name;
           if (match.productId) {
+            matchedProductId = String(match.productId);
             tcgProductUrl = `https://www.tcgplayer.com/product/${match.productId}`;
           }
         }
@@ -234,6 +238,7 @@ async function queryLivePrice(cardId) {
           lowestPrice = match.lowestPrice ? parseFloat(match.lowestPrice) : parseFloat((marketPrice * 0.85).toFixed(2));
           matchedProductName = match.productName || card.name;
           if (match.productId) {
+            matchedProductId = String(match.productId);
             tcgProductUrl = `https://www.tcgplayer.com/product/${match.productId}`;
           } else if (match.customUrl) {
             tcgProductUrl = `https://www.tcgplayer.com${match.customUrl}`;
@@ -258,6 +263,24 @@ async function queryLivePrice(cardId) {
       marketPrice = existing.market_price;
       lowestPrice = existing.low_price;
     }
+  }
+
+  // Filter out foreign language listings (e.g. JAPANESE, ***JAPANESE***, CHINESE)
+  // and locate the lowest clean English listing without a language note
+  const targetProductId = matchedProductId ||
+    (card.id.match(/^[a-z]+-(\d+)$/) ? card.id.match(/^[a-z]+-(\d+)$/)[1] : null) ||
+    (existing?.source_url ? (existing.source_url.match(/product\/(\d+)/)?.[1]) : null);
+
+  if (targetProductId) {
+    const verifiedLow = await fetchVerifiedLowestListing(targetProductId, { isSealed: card.is_sealed === 1 });
+    if (verifiedLow && verifiedLow.lowestPrice) {
+      lowestPrice = verifiedLow.lowestPrice;
+    }
+  }
+
+  // Guard against unverified foreign listings that significantly deflate lowest price
+  if (lowestPrice && marketPrice && lowestPrice < (marketPrice * 0.4)) {
+    lowestPrice = parseFloat((marketPrice * 0.85).toFixed(2));
   }
 
   const insertPrice = db.prepare(`
