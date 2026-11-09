@@ -68,8 +68,9 @@ export default function App() {
   }, [selectedGame]);
 
   // 3. Load cards when filters or page changes
-  const loadCards = useCallback(async () => {
-    setIsLoadingCards(true);
+  const loadCards = useCallback(async (opts = {}) => {
+    const isSilent = opts.silent ?? false;
+    if (!isSilent) setIsLoadingCards(true);
     try {
       const data = await fetchCards({
         game: selectedGame,
@@ -86,7 +87,7 @@ export default function App() {
     } catch (err) {
       console.error('Failed to load cards:', err);
     } finally {
-      setIsLoadingCards(false);
+      if (!isSilent) setIsLoadingCards(false);
     }
   }, [selectedGame, selectedSets, searchQuery, selectedRarity, selectedSort, gradedOnly, page]);
 
@@ -120,8 +121,8 @@ export default function App() {
     try {
       const res = await triggerLiveQuery(cardId);
       showToast(`Updated live market price for ${res.name}: $${res.market_price}`);
-      // Refresh current cards
-      loadCards();
+      // Refresh current cards seamlessly in background
+      loadCards({ silent: true });
       const s = await fetchStats();
       setStats(s);
     } catch (err) {
@@ -135,7 +136,7 @@ export default function App() {
     try {
       const res = await triggerPriceSync(selectedGame || null);
       showToast(`Daily price sync completed (${res.result.updated || res.result.initialized} updated)`);
-      loadCards();
+      loadCards({ silent: true });
       const s = await fetchStats();
       setStats(s);
     } catch (err) {
@@ -242,7 +243,7 @@ export default function App() {
           cardId={selectedCardId}
           onClose={() => setSelectedCardId(null)}
           onPriceUpdated={() => {
-            loadCards();
+            loadCards({ silent: true });
             fetchStats().then(setStats);
           }}
         />
@@ -257,7 +258,7 @@ export default function App() {
         isOpen={isSyncOpen}
         onClose={() => setIsSyncOpen(false)}
         onPriceSyncTriggered={() => {
-          loadCards();
+          loadCards({ silent: true });
           fetchStats().then(setStats);
         }}
       />

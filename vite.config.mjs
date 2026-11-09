@@ -9,6 +9,17 @@ export default defineConfig({
   ],
   server: {
     port: 5173,
+    watch: {
+      ignored: [
+        '**/data/**',
+        '**/*.db',
+        '**/*.db-wal',
+        '**/*.db-shm',
+        '**/server/**',
+        '**/scripts/**',
+        '**/.git/**'
+      ]
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:3001',

@@ -10,7 +10,8 @@ export default function CardGrid({
   onLiveCheck,
   isLoading
 }) {
-  if (isLoading) {
+  // Only show skeleton loader when initial cards are not yet loaded
+  if (isLoading && cards.length === 0) {
     return (
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 animate-pulse">
         {Array.from({ length: 12 }).map((_, i) => (
@@ -47,7 +48,7 @@ export default function CardGrid({
     <div className="space-y-6">
       
       {/* Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+      <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 transition-opacity duration-200 ${isLoading ? 'opacity-70' : 'opacity-100'}`}>
         {cards.map((card) => (
           <CardCard
             key={card.id}
