@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   X, Zap, TrendingUp, Calendar, Info, RefreshCw, CheckCircle2, 
-  ExternalLink, AlertCircle, Store, Globe, Gavel, Scale, ArrowUpRight 
+  ExternalLink, AlertCircle, Store, Globe, Gavel, Scale, ArrowUpRight,
+  Award, Shield
 } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
 import { fetchCardDetails, triggerLiveQuery } from '../lib/api';
@@ -231,6 +232,76 @@ export default function CardModal({ cardId, onClose, onPriceUpdated }) {
               </div>
             </div>
 
+            {/* PSA Graded Valuations */}
+            {card.graded_psa10 ? (
+              <div className="bg-gradient-to-r from-rose-950/40 via-slate-900 to-amber-950/30 border border-rose-900/50 rounded-3xl p-5 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-rose-900/40 pb-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                      <Award className="w-4 h-4 text-rose-400" />
+                      <span>PSA Graded Market Valuations</span>
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Consensus market pricing aggregated from certified auction comps (eBay, PWCC, Goldin) via PriceCharting
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-rose-950/80 border border-rose-700/60 text-rose-200 text-xs font-semibold">
+                    <Shield className="w-3.5 h-3.5 text-rose-400" />
+                    <span>PSA Consensus Values</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* PSA 10 Card */}
+                  <div className="bg-slate-950/70 border border-rose-800/40 rounded-2xl p-4 flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded-md bg-rose-600 text-white font-black text-xs tracking-wider shadow-md">
+                          PSA 10
+                        </span>
+                        <span className="text-xs font-semibold text-rose-200 uppercase tracking-wide">Gem Mint</span>
+                      </div>
+                      <div className="text-2xl font-black text-white mt-2">
+                        ${Number(card.graded_psa10).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                      {hasPrice && Number(card.graded_psa10) > Number(card.latest_price?.market_price) && (
+                        <div className="text-[11px] text-emerald-400 font-medium mt-0.5 flex items-center gap-1">
+                          <TrendingUp className="w-3 h-3" />
+                          <span>{(Number(card.graded_psa10) / Number(card.latest_price?.market_price)).toFixed(1)}x raw market multiplier</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="w-12 h-12 rounded-2xl bg-rose-950/60 border border-rose-700/40 flex items-center justify-center">
+                      <Award className="w-6 h-6 text-rose-400" />
+                    </div>
+                  </div>
+
+                  {/* PSA 9 Card */}
+                  <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-slate-200 font-bold text-xs tracking-wider">
+                          PSA 9
+                        </span>
+                        <span className="text-xs font-semibold text-slate-300 uppercase tracking-wide">Mint</span>
+                      </div>
+                      <div className="text-2xl font-black text-slate-200 mt-2">
+                        {card.graded_psa9 ? `$${Number(card.graded_psa9).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '--'}
+                      </div>
+                      {card.graded_psa9 && hasPrice && (
+                        <div className="text-[11px] text-slate-400 font-medium mt-0.5">
+                          <span>{(Number(card.graded_psa9) / Number(card.latest_price?.market_price)).toFixed(1)}x raw market value</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center">
+                      <Shield className="w-6 h-6 text-slate-400" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             {/* Multi-Source Comparison Table & Discrepancy Analysis */}
             <div className="bg-slate-950/70 border border-slate-800 rounded-3xl p-5 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
@@ -400,6 +471,15 @@ export default function CardModal({ cardId, onClose, onPriceUpdated }) {
                         strokeWidth={2.5}
                         dot={{ r: 4, fill: '#38bdf8' }}
                         activeDot={{ r: 6 }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="graded_psa10"
+                        name="PSA 10 Graded"
+                        stroke="#f43f5e"
+                        strokeWidth={2}
+                        dot={{ r: 4, fill: '#f43f5e' }}
+                        connectNulls={true}
                       />
                       <Line
                         type="monotone"

@@ -1,5 +1,6 @@
 const db = require('../db');
 const { getTcgSetName } = require('./setMapping');
+const { fetchPsaPrices } = require('./gradedPricing');
 
 const TCGPLAYER_SEARCH_API = 'https://mp-search-api.tcgplayer.com/v1/search/request';
 
@@ -168,6 +169,19 @@ async function queryLivePrice(cardId) {
   if (marketPrice !== null && marketPrice > 0) {
     const highPrice = parseFloat((marketPrice * 1.25).toFixed(2));
 
+    // Fetch live PSA 10 / PSA 9 valuation from PriceCharting
+    let psa10 = null;
+    let psa9 = null;
+    try {
+      const psaRes = await fetchPsaPrices(card);
+      if (psaRes) {
+        psa10 = psaRes.psa10 || null;
+        psa9 = psaRes.psa9 || null;
+      }
+    } catch {
+      // Non-fatal if PSA query fails
+    }
+
     // 1. Record TCGPlayer Live
     insertPrice.run(
       cardId,
@@ -175,8 +189,8 @@ async function queryLivePrice(cardId) {
       marketPrice,
       lowestPrice,
       highPrice,
-      null,
-      null,
+      psa10,
+      psa9,
       'USD',
       tcgProductUrl,
       todayStr
@@ -241,6 +255,8 @@ async function queryLivePrice(cardId) {
       market_price: marketPrice,
       low_price: lowestPrice,
       high_price: highPrice,
+      graded_psa10: psa10,
+      graded_psa9: psa9,
       currency: 'USD',
       tcg_url: tcgProductUrl,
       sources_updated: ['tcgplayer_live', 'cardmarket', 'ebay_sold'],

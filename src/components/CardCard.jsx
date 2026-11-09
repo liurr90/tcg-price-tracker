@@ -162,6 +162,26 @@ export default function CardCard({ card, onSelect, onLiveCheck }) {
             </div>
           )}
         </div>
+
+        {/* PSA 10 & 9 Graded Price (if available) */}
+        {card.graded_psa10 ? (
+          <div className="mt-2 pt-2 border-t border-slate-800/60 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-1.5">
+              <span className="px-1.5 py-0.5 rounded bg-rose-950/90 border border-rose-700/60 text-rose-300 font-bold text-[10px] tracking-wide shadow-sm">
+                PSA 10
+              </span>
+              <span className="font-bold text-rose-400">
+                ${Number(card.graded_psa10).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+            {card.graded_psa9 && (
+              <div className="text-[11px] text-slate-400 font-medium">
+                <span className="text-slate-500 mr-1">PSA 9:</span>
+                <span className="text-slate-300">${Number(card.graded_psa9).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+            )}
+          </div>
+        ) : null}
       </div>
     </div>
   );

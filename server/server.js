@@ -327,8 +327,13 @@ app.get('/api/cards/:id', (req, res) => {
 
     const discrepancy = computeSourceDiscrepancy(sources);
 
+    const bestPsa10 = prices.slice().reverse().find(p => p.graded_psa10 !== null && p.graded_psa10 !== undefined)?.graded_psa10 ?? null;
+    const bestPsa9 = prices.slice().reverse().find(p => p.graded_psa9 !== null && p.graded_psa9 !== undefined)?.graded_psa9 ?? null;
+
     res.json({
       ...card,
+      graded_psa10: bestPsa10,
+      graded_psa9: bestPsa9,
       price_history: prices,
       latest_price: prices[prices.length - 1] || null,
       sources,
