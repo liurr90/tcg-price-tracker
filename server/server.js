@@ -266,15 +266,15 @@ app.get('/api/cards', (req, res) => {
     } else if (sort === 'number_asc') {
       orderBy = 'ORDER BY card_number ASC';
     } else if (sort === 'graded_desc' || sort === 'psa10_desc') {
-      orderBy = 'ORDER BY COALESCE(graded_bgs10_black, graded_bgs10, graded_psa10) DESC NULLS LAST';
+      orderBy = 'ORDER BY COALESCE(NULLIF(MAX(COALESCE(graded_psa10, 0), COALESCE(graded_bgs10, 0)), 0), graded_bgs10_black) DESC NULLS LAST';
     } else if (sort === 'graded_asc') {
-      orderBy = 'ORDER BY COALESCE(graded_psa10, graded_bgs10, graded_bgs10_black) ASC NULLS LAST';
+      orderBy = 'ORDER BY NULLIF(MIN(COALESCE(graded_psa10, 999999999), COALESCE(graded_bgs10, 999999999)), 999999999) ASC NULLS LAST';
     } else if (sort === 'psa10_only_desc') {
       orderBy = 'ORDER BY graded_psa10 DESC NULLS LAST';
     } else if (sort === 'bgs10_only_desc') {
-      orderBy = 'ORDER BY COALESCE(graded_bgs10_black, graded_bgs10) DESC NULLS LAST';
+      orderBy = 'ORDER BY COALESCE(graded_bgs10, graded_bgs10_black) DESC NULLS LAST';
     } else if (sort === 'graded_premium_desc') {
-      orderBy = 'ORDER BY (COALESCE(graded_bgs10, graded_psa10, graded_bgs10_black) / NULLIF(market_price, 0)) DESC NULLS LAST';
+      orderBy = 'ORDER BY (MAX(COALESCE(graded_psa10, 0), COALESCE(graded_bgs10, 0)) / NULLIF(market_price, 0)) DESC NULLS LAST';
     }
 
     const countSql = `
