@@ -24,6 +24,16 @@ async function updatePrices(gameId = null) {
     const setSyncRes = await syncPrioritySets();
     results.setSync = setSyncRes.totalCardsMatched;
 
+    // Daily update for sealed products
+    if (!gameId || gameId === 'sealed') {
+      try {
+        const { ingestAllSealedProducts } = require('../ingestors/sealedIngestor');
+        results.sealed = await ingestAllSealedProducts();
+      } catch (err) {
+        console.warn('[Price Updater] Sealed update warning:', err.message);
+      }
+    }
+
     const totalVerified = db.prepare("SELECT COUNT(*) as c FROM price_history WHERE source LIKE 'tcgplayer%'").get().c;
 
     db.prepare(`

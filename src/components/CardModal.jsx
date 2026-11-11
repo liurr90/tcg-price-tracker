@@ -593,9 +593,14 @@ export default function CardModal({ cardId, onClose, onNavigate, onPriceUpdated 
                     <h3 className="text-sm font-semibold text-white flex items-center gap-2">
                       <TrendingUp className="w-4 h-4 text-cyan-400" />
                       <span>Verified Price History</span>
+                      <span className="text-[11px] font-normal px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+                        {card.price_history.length} {card.price_history.length === 1 ? 'daily point' : 'daily points'}
+                      </span>
                     </h3>
                     <p className="text-xs text-slate-400">
-                      Tracking price history across recorded marketplace dates
+                      {card.price_history.length === 1
+                        ? 'First daily snapshot recorded. Historical line trend develops with each automated daily sync (06:00 & 18:00).'
+                        : 'Tracking daily price movement across recorded marketplace snapshots.'}
                     </p>
                   </div>
                 </div>
@@ -665,7 +670,7 @@ export default function CardModal({ cardId, onClose, onNavigate, onPriceUpdated 
                         stroke="#34d399"
                         strokeWidth={1.5}
                         strokeDasharray="4 4"
-                        dot={false}
+                        dot={{ r: 3, fill: '#34d399' }}
                       />
                     </LineChart>
                   </ResponsiveContainer>

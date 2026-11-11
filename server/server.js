@@ -383,9 +383,19 @@ app.get('/api/cards/:id', (req, res) => {
     if (!card) return res.status(404).json({ error: 'Card not found' });
 
     const prices = db.prepare(`
-      SELECT * FROM price_history 
-      WHERE card_id = ? 
-      ORDER BY recorded_at ASC, id ASC
+      SELECT 
+        p.id, p.card_id, p.source,
+        p.market_price, p.low_price, p.high_price,
+        p.graded_psa10, p.graded_psa9, p.graded_bgs10, p.graded_bgs10_black,
+        p.currency, p.source_url, p.recorded_at
+      FROM price_history p
+      INNER JOIN (
+        SELECT recorded_at, MAX(id) as max_id
+        FROM price_history
+        WHERE card_id = ?
+        GROUP BY recorded_at
+      ) latest_daily ON p.id = latest_daily.max_id
+      ORDER BY p.recorded_at ASC
     `).all(req.params.id);
 
     // Fetch latest price record for each distinct source

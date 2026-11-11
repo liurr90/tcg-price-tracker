@@ -323,7 +323,10 @@ async function ingestAllSealedProducts() {
 
         if (item.marketPrice !== undefined && item.marketPrice !== null && item.marketPrice > 0) {
           const marketPrice = parseFloat(item.marketPrice);
-          const lowPrice = item.lowestPrice ? parseFloat(item.lowestPrice) : parseFloat((marketPrice * 0.85).toFixed(2));
+          let lowPrice = item.lowestPrice ? parseFloat(item.lowestPrice) : parseFloat((marketPrice * 0.85).toFixed(2));
+          if (lowPrice < marketPrice * 0.65) {
+            lowPrice = parseFloat((marketPrice * 0.85).toFixed(2));
+          }
           const highPrice = parseFloat((marketPrice * 1.25).toFixed(2));
           const sourceUrl = `https://www.tcgplayer.com/product/${item.productId}`;
 

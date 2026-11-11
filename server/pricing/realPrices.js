@@ -50,7 +50,10 @@ async function syncRealOnePiecePrices() {
       }
       if (card) {
         const market = parseFloat(item.market_price);
-        const low = item.inventory_price ? parseFloat(item.inventory_price) : parseFloat((market * 0.85).toFixed(2));
+        let low = item.inventory_price ? parseFloat(item.inventory_price) : parseFloat((market * 0.85).toFixed(2));
+        if (low < market * 0.65) {
+          low = parseFloat((market * 0.85).toFixed(2));
+        }
         const high = parseFloat((market * 1.25).toFixed(2));
         
         insertPrice.run(
@@ -62,7 +65,7 @@ async function syncRealOnePiecePrices() {
           null,
           null,
           'USD',
-          item.date_scraped || todayStr
+          todayStr
         );
         matchedCount++;
       }
